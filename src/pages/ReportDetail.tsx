@@ -21,6 +21,8 @@ const MOCK_REPORT: Report = {
   status: "OPEN",
   authorUsername: "ion.popescu",
   authorId: 1,
+  latitude: 44.4350,
+  longitude: 26.1020,
   createdAt: "2026-02-10T10:00:00Z",
   updatedAt: "2026-02-10T10:00:00Z",
 };

@@ -29,6 +29,8 @@ export default function EditReportPage() {
       status: "OPEN",
       authorUsername: "ion.popescu",
       authorId: 1,
+      latitude: 44.4350,
+      longitude: 26.1020,
       createdAt: "2026-02-10T10:00:00Z",
       updatedAt: "2026-02-10T10:00:00Z",
     });
@@ -69,7 +71,7 @@ export default function EditReportPage() {
         </button>
         <h1 className="font-heading text-lg font-bold text-foreground">Editează raportul</h1>
         <ReportForm
-          initialData={{ title: report.title, description: report.description, category: report.category }}
+          initialData={{ title: report.title, description: report.description, category: report.category, latitude: report.latitude, longitude: report.longitude }}
           onSubmit={handleSubmit}
           loading={loading}
           submitLabel="Salvează modificările"

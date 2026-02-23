@@ -87,6 +87,9 @@ export async function createReport(data: CreateReportRequest): Promise<Report> {
   formData.append("title", data.title);
   formData.append("description", data.description);
   formData.append("category", data.category);
+  formData.append("latitude", String(data.latitude));
+  formData.append("longitude", String(data.longitude));
+  if (data.address) formData.append("address", data.address);
   if (data.image) {
     formData.append("image", data.image);
   }
@@ -109,6 +112,9 @@ export async function updateReport(
   formData.append("title", data.title);
   formData.append("description", data.description);
   formData.append("category", data.category);
+  if (data.latitude != null) formData.append("latitude", String(data.latitude));
+  if (data.longitude != null) formData.append("longitude", String(data.longitude));
+  if (data.address) formData.append("address", data.address);
   if (data.image) {
     formData.append("image", data.image);
   }
