@@ -11,6 +11,9 @@ export interface Report {
   imageUrl?: string;
   authorUsername: string;
   authorId: number;
+  latitude: number;
+  longitude: number;
+  address?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -37,6 +40,9 @@ export interface CreateReportRequest {
   title: string;
   description: string;
   category: ReportCategory;
+  latitude: number;
+  longitude: number;
+  address?: string;
   image?: File;
 }
 
@@ -44,6 +50,9 @@ export interface UpdateReportRequest {
   title: string;
   description: string;
   category: ReportCategory;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
   image?: File;
 }
 
@@ -60,3 +69,16 @@ export const STATUS_LABELS: Record<ReportStatus, string> = {
   IN_PROGRESS: "În lucru",
   RESOLVED: "Rezolvat",
 };
+
+/** Colors for map markers by category */
+export const CATEGORY_COLORS: Record<ReportCategory, string> = {
+  DRUM: "#e74c3c",
+  ILUMINAT: "#f39c12",
+  GUNOI: "#27ae60",
+  VANDALISM: "#8e44ad",
+  ALTELE: "#3498db",
+};
+
+/** Default map center (Bucharest) */
+export const DEFAULT_MAP_CENTER = { lat: 44.4268, lng: 26.1025 };
+export const DEFAULT_MAP_ZOOM = 13;
