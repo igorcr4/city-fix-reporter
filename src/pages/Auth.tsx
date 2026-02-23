@@ -16,7 +16,7 @@ export default function AuthPage() {
   const navigate = useNavigate();
 
   // Login state
-  const [loginUsername, setLoginUsername] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
   // Register state
@@ -26,10 +26,10 @@ export default function AuthPage() {
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
-    if (!loginUsername.trim() || !loginPassword) return;
+    if (!loginEmail.trim() || !loginPassword) return;
     setLoading(true);
     try {
-      const user = await login({ username: loginUsername.trim(), password: loginPassword });
+      const user = await login({ email: loginEmail.trim(), password: loginPassword });
       setUser(user);
       toast({ title: "Bine ai venit!", description: `Salut, ${user.username}!` });
       navigate("/");
@@ -39,26 +39,48 @@ export default function AuthPage() {
       setLoading(false);
     }
   };
+const handleRegister = async (e: FormEvent) => {
+  e.preventDefault();
 
-  const handleRegister = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!regUsername.trim() || !regEmail.trim() || !regPassword) return;
-    if (regPassword.length < 6) {
-      toast({ title: "Eroare", description: "Parola trebuie să aibă minim 6 caractere.", variant: "destructive" });
-      return;
-    }
-    setLoading(true);
-    try {
-      const user = await register({ username: regUsername.trim(), email: regEmail.trim(), password: regPassword });
-      setUser(user);
-      toast({ title: "Cont creat!", description: "Bine ai venit în FixCity!" });
-      navigate("/");
-    } catch {
-      toast({ title: "Eroare", description: "Înregistrare eșuată. Încearcă din nou.", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (!regUsername.trim() || !regEmail.trim() || !regPassword) return;
+
+  if (regPassword.length < 6) {
+    toast({
+      title: "Eroare",
+      description: "Parola trebuie să aibă minim 6 caractere.",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    await register({
+      username: regUsername.trim(),
+      email: regEmail.trim(),
+      password: regPassword,
+    });
+
+    toast({
+      title: "Cont creat!",
+      description: "Contul a fost creat. Acum te poți autentifica.",
+    });
+
+    setRegUsername("");
+    setRegEmail("");
+    setRegPassword("");
+
+  } catch (error) {
+    toast({
+      title: "Eroare",
+      description: error instanceof Error ? error.message : "Înregistrare eșuată. Încearcă din nou.",
+      variant: "destructive",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -98,7 +120,7 @@ export default function AuthPage() {
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="login-user">Utilizator</Label>
-              <Input id="login-user" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} placeholder="username" required />
+              <Input id="login-user" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="email" required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="login-pass">Parolă</Label>

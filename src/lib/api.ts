@@ -34,17 +34,24 @@ export async function login(data: LoginRequest): Promise<User> {
   return res.json();
 }
 
-export async function register(data: RegisterRequest): Promise<User> {
-  // TODO: Apelează backend-ul real de register
-  const res = await fetch(`${BASE_URL}/auth/register`, {
+export async function register(data: RegisterRequest): Promise<void> {
+  const res = await fetch(`${BASE_URL}/users/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Înregistrare eșuată");
-  return res.json();
-}
 
+  if (!res.ok) {
+    let errorMessage = "Înregistrare eșuată";
+    try {
+      errorMessage = await res.text();
+    } catch {}
+    console.error("REGISTER ERROR:", res.status, errorMessage);
+    throw new Error(`${res.status} - ${errorMessage}`);
+  }
+
+  return;
+}
 // ==================== REPORTS ====================
 
 export async function getAllReports(): Promise<Report[]> {
