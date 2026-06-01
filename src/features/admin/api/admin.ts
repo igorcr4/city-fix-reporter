@@ -1,11 +1,10 @@
 import { apiFetch } from "@/core/api/http";
+import { API_BASE_URL as BASE_URL } from "@/core/config/api";
 import { normalizeUserRole } from "@/core/auth/roles";
 import type {
   AdminUser,
   PromoteMunicipalAdminPayload,
 } from "@/features/admin/types";
-
-const BASE_URL = "http://localhost:8080/api";
 
 const ADMIN_USER_BY_USERNAME_ENDPOINT = `${BASE_URL}/admin/users/username`;
 interface RawAdminUser {

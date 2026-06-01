@@ -141,12 +141,89 @@
   .bg-status-resolved {
     background-color: hsl(var(--status-resolved-bg));
   }
+
+  .mobile-map-header {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+    padding-left: max(1rem, calc(env(safe-area-inset-left, 0px) + 0.75rem));
+    padding-right: max(1rem, calc(env(safe-area-inset-right, 0px) + 0.75rem));
+  }
+
+  .mobile-map-control-left {
+    left: max(0.75rem, calc(env(safe-area-inset-left, 0px) + 0.75rem));
+  }
+
+  .mobile-map-control-top {
+    top: calc(env(safe-area-inset-top, 0px) + 4.75rem);
+  }
+
+  .mobile-map-actions-top {
+    top: calc(env(safe-area-inset-top, 0px) + 10.75rem);
+  }
+
+  .mobile-map-floating-action {
+    right: max(1.5rem, calc(env(safe-area-inset-right, 0px) + 1.25rem));
+    bottom: max(1.5rem, calc(env(safe-area-inset-bottom, 0px) + 1.25rem));
+  }
+
+  .mobile-modal-header {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+    padding-left: max(1rem, calc(env(safe-area-inset-left, 0px) + 1rem));
+    padding-right: max(1rem, calc(env(safe-area-inset-right, 0px) + 1rem));
+  }
+
+  .mobile-modal-footer {
+    padding-left: max(1rem, calc(env(safe-area-inset-left, 0px) + 1rem));
+    padding-right: max(1rem, calc(env(safe-area-inset-right, 0px) + 1rem));
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);
+  }
+
+  @media (min-width: 768px) {
+    .mobile-map-floating-action {
+      right: 2rem;
+      bottom: 2rem;
+    }
+  }
+}
+
+.map-header-profile button {
+  width: 2.75rem;
+  height: 2.75rem;
+  touch-action: manipulation;
+}
+
+.mobile-map-shell .maplibregl-ctrl-top-right {
+  top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+  right: max(0.75rem, calc(env(safe-area-inset-right, 0px) + 0.75rem));
+}
+
+.mobile-map-shell .maplibregl-ctrl-group {
+  overflow: hidden;
+  border-radius: 0.75rem;
+}
+
+.mobile-map-shell .maplibregl-ctrl-group button {
+  width: 2.75rem;
+  height: 2.75rem;
 }
 
 /* MapLibre popup overrides */
+.maplibregl-popup {
+  max-width: min(
+    280px,
+    calc(
+      100vw - env(safe-area-inset-left, 0px) -
+        env(safe-area-inset-right, 0px) - 2rem
+    )
+  ) !important;
+}
+
 .maplibregl-popup-content {
   border-radius: 0.75rem !important;
   padding: 0.75rem !important;
+  max-width: calc(
+    100vw - env(safe-area-inset-left, 0px) -
+      env(safe-area-inset-right, 0px) - 2rem
+  ) !important;
   box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15) !important;
   border: 1px solid hsl(var(--border)) !important;
   background: hsl(var(--card)) !important;

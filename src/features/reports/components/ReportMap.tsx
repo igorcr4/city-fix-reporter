@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import Map, { Marker, Popup } from "react-map-gl/maplibre";
 import type { MapRef } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -25,9 +25,19 @@ import { toast } from "@/shared/hooks/use-toast";
 interface ReportMapProps {
   reports: Report[];
   className?: string;
+  focusedReportId?: number | null;
+  focusedLocation?: {
+    latitude: number;
+    longitude: number;
+  } | null;
 }
 
-export function ReportMap({ reports, className }: ReportMapProps) {
+export function ReportMap({
+  reports,
+  className,
+  focusedReportId,
+  focusedLocation,
+}: ReportMapProps) {
   const navigate = useNavigate();
   const mapRef = useRef<MapRef | null>(null);
 
@@ -141,25 +151,47 @@ export function ReportMap({ reports, className }: ReportMapProps) {
     });
   }, []);
 
+  useEffect(() => {
+    if (!focusedLocation) return;
+
+    const focusedReport =
+      focusedReportId != null
+        ? reports.find((report) => report.id === focusedReportId)
+        : null;
+
+    mapRef.current?.flyTo({
+      center: [focusedLocation.longitude, focusedLocation.latitude],
+      zoom: 16,
+      bearing: 0,
+      pitch: 0,
+      duration: 900,
+      essential: true,
+    });
+
+    if (focusedReport) {
+      setSelectedReport(focusedReport);
+    }
+  }, [focusedLocation, focusedReportId, reports]);
+
   return (
     <div className={className}>
       <Map
         ref={mapRef}
         initialViewState={{
-          latitude: DEFAULT_MAP_CENTER.lat,
-          longitude: DEFAULT_MAP_CENTER.lng,
-          zoom: DEFAULT_MAP_ZOOM,
+          latitude: focusedLocation?.latitude ?? DEFAULT_MAP_CENTER.lat,
+          longitude: focusedLocation?.longitude ?? DEFAULT_MAP_CENTER.lng,
+          zoom: focusedLocation ? 16 : DEFAULT_MAP_ZOOM,
         }}
         style={{ width: "100%", height: "100%" }}
         mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
         attributionControl={false}
       >
         {/* Butoane reale de zoom */}
-        <div className="absolute left-3 top-16 z-10 overflow-hidden rounded-xl bg-card/90 shadow-md backdrop-blur-md">
+        <div className="mobile-map-control-left mobile-map-control-top absolute z-10 overflow-hidden rounded-xl bg-card/90 shadow-md backdrop-blur-md">
           <button
             type="button"
             onClick={handleZoomIn}
-            className="flex h-10 w-10 items-center justify-center border-b border-border text-2xl font-semibold text-foreground transition hover:bg-muted"
+            className="flex h-11 w-11 touch-manipulation items-center justify-center border-b border-border text-2xl font-semibold text-foreground transition hover:bg-muted"
             aria-label="Mărește harta"
           >
             +
@@ -168,7 +200,7 @@ export function ReportMap({ reports, className }: ReportMapProps) {
           <button
             type="button"
             onClick={handleZoomOut}
-            className="flex h-10 w-10 items-center justify-center text-2xl font-semibold text-foreground transition hover:bg-muted"
+            className="flex h-11 w-11 touch-manipulation items-center justify-center text-2xl font-semibold text-foreground transition hover:bg-muted"
             aria-label="Micșorează harta"
           >
             −
@@ -176,12 +208,12 @@ export function ReportMap({ reports, className }: ReportMapProps) {
         </div>
 
         {/* Buton custom pentru locația curentă */}
-        <div className="absolute left-3 top-40 z-10 flex flex-col gap-2">
+        <div className="mobile-map-actions-top mobile-map-control-left absolute z-10 flex flex-col gap-2">
           <Button
             type="button"
             variant="secondary"
             size="icon"
-            className="h-10 w-10 rounded-xl shadow-md"
+            className="h-11 w-11 touch-manipulation rounded-xl shadow-md"
             onClick={handleLocateMe}
             disabled={geoLoading}
           >
@@ -196,7 +228,7 @@ export function ReportMap({ reports, className }: ReportMapProps) {
             type="button"
             variant="secondary"
             size="icon"
-            className="h-10 w-10 rounded-xl shadow-md"
+            className="h-11 w-11 touch-manipulation rounded-xl shadow-md"
             onClick={handleResetMapView}
             aria-label="Resetează harta"
             title="Resetează harta"
@@ -233,7 +265,9 @@ export function ReportMap({ reports, className }: ReportMapProps) {
             }}
           >
             <div
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-2 border-white shadow-lg transition-transform hover:scale-110"
+              className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-2 border-white shadow-lg transition-transform hover:scale-110 ${
+                focusedReportId === report.id ? "ring-4 ring-primary/30" : ""
+              }`}
               style={{ backgroundColor: CATEGORY_COLORS[report.category] }}
             >
               <MapPin className="h-4 w-4 text-white" />

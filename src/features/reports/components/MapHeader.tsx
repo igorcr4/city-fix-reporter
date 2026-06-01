@@ -33,11 +33,11 @@ export function MapHeader({
   const navigate = useNavigate();
 
   return (
-    <header className="absolute left-0 right-0 top-0 z-30 px-4 py-3">
-      <div className="relative flex items-center justify-end">
+    <header className="mobile-map-header absolute left-0 right-0 top-0 z-30 pb-3">
+      <div className="flex min-h-11 items-center justify-between gap-2 sm:relative sm:justify-end">
         <button
           onClick={() => navigate("/reports")}
-          className="absolute left-1/2 -translate-x-1/2 rounded-lg bg-card/90 px-3 py-1.5 font-heading text-lg font-bold text-primary shadow-md backdrop-blur-md"
+          className="shrink-0 rounded-lg bg-card/90 px-3 py-2 font-heading text-base font-bold text-primary shadow-md backdrop-blur-md sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:text-lg"
         >
           FixCity
         </button>
@@ -48,7 +48,7 @@ export function MapHeader({
               <Button
                 type="button"
                 variant="secondary"
-                className="h-10 rounded-full bg-card/90 px-3 shadow-md backdrop-blur-md"
+                className="h-11 min-w-11 touch-manipulation rounded-full bg-card/90 px-3 shadow-md backdrop-blur-md"
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 {selectedCategory !== "ALL" && (
@@ -67,7 +67,12 @@ export function MapHeader({
               </Button>
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuContent
+              align="end"
+              collisionPadding={16}
+              sideOffset={8}
+              className="w-52 max-w-[calc(100vw-2rem)]"
+            >
               <DropdownMenuRadioGroup
                 value={selectedCategory}
                 onValueChange={(value) =>
@@ -99,7 +104,7 @@ export function MapHeader({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="rounded-full bg-card/90 shadow-md backdrop-blur-md">
+          <div className="map-header-profile rounded-full bg-card/90 shadow-md backdrop-blur-md">
             <ProfileMenu />
           </div>
         </div>

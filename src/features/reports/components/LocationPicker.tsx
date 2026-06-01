@@ -234,8 +234,8 @@ export function LocationPicker({
       {isMapOpen && (
         <div className="fixed inset-0 z-[100] bg-background">
           <div className="flex h-full flex-col">
-            <div className="flex items-center justify-between border-b bg-background px-4 py-3">
-              <div>
+            <div className="mobile-modal-header flex items-center justify-between gap-3 border-b bg-background pb-3">
+              <div className="min-w-0">
                 <h2 className="text-base font-semibold">Alege locația pe hartă</h2>
                 <p className="text-sm text-muted-foreground">
                   Apasă pe hartă pentru a seta punctul exact.
@@ -246,13 +246,14 @@ export function LocationPicker({
                 type="button"
                 variant="ghost"
                 size="icon"
+                className="h-11 w-11 shrink-0 touch-manipulation"
                 onClick={() => setIsMapOpen(false)}
               >
                 <X className="h-5 w-5" />
               </Button>
             </div>
 
-            <div className="relative flex-1">
+            <div className="mobile-map-shell relative flex-1">
               <Map
                 {...modalViewState}
                 onMove={(evt) => setModalViewState(evt.viewState)}
@@ -284,7 +285,7 @@ export function LocationPicker({
               </Map>
             </div>
 
-            <div className="border-t bg-background px-4 py-3">
+            <div className="mobile-modal-footer border-t bg-background pt-3">
               {tempLocation ? (
                 <p className="mb-3 text-sm text-muted-foreground">
                   📍 {tempLocation.lat.toFixed(5)}, {tempLocation.lng.toFixed(5)}
@@ -299,7 +300,7 @@ export function LocationPicker({
                 <Button
                   type="button"
                   variant="outline"
-                  className="flex-1"
+                  className="h-11 flex-1 touch-manipulation"
                   onClick={() => setIsMapOpen(false)}
                 >
                   Anulează
@@ -307,7 +308,7 @@ export function LocationPicker({
 
                 <Button
                   type="button"
-                  className="flex-1"
+                  className="h-11 flex-1 touch-manipulation"
                   onClick={handleConfirmLocation}
                 >
                   Confirmă locația

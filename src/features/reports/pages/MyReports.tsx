@@ -17,7 +17,7 @@ import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Badge } from "@/shared/components/ui/badge";
-import { Loader2, MapPin, Search, SlidersHorizontal } from "lucide-react";
+import { Expand, Loader2, MapPin, Search, SlidersHorizontal } from "lucide-react";
 import { toast } from "@/shared/hooks/use-toast";
 import { reverseGeocodeCoordinates } from "@/core/api/api";
 
@@ -25,38 +25,58 @@ type SortKey = "newest" | "oldest";
 
 const categories: Array<ReportCategory | "ALL"> = ["ALL", "ROAD", "LIGHTING", "WASTE", "VANDALISM", "OTHER"];
 
-function MiniMap({ report }: { report: Report }) {
+function MiniMap({
+  report,
+  onShowOnMap,
+}: {
+  report: Report;
+  onShowOnMap: (report: Report) => void;
+}) {
   return (
-    <div className="h-36 w-full overflow-hidden rounded-md border border-border bg-muted">
-      <Map
-        initialViewState={{
-          latitude: report.latitude,
-          longitude: report.longitude,
-          zoom: 15,
-        }}
-        style={{ width: "100%", height: "100%" }}
-        mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
-        attributionControl={false}
-        // ✅ “mini map” non-interactivă (scroll performant)
-        dragPan={false}
-        dragRotate={false}
-        scrollZoom={false}
-        doubleClickZoom={false}
-        touchZoomRotate={false}
-        keyboard={false}
-        interactive={false}
-      >
-        <Marker latitude={report.latitude} longitude={report.longitude} anchor="bottom">
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white shadow-lg"
-            style={{ backgroundColor: CATEGORY_COLORS[report.category] }}
-            title={CATEGORY_LABELS[report.category] ?? report.category}
-          >
-            <MapPin className="h-4 w-4 text-white" />
-          </div>
-        </Marker>
-      </Map>
-    </div>
+    <button
+      type="button"
+      className="group/map relative h-36 w-full overflow-hidden rounded-md border border-border bg-muted text-left transition hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      onClick={(event) => {
+        event.stopPropagation();
+        onShowOnMap(report);
+      }}
+      aria-label={`Arată pe hartă raportul ${report.title || report.id}`}
+    >
+      <div className="h-full w-full transition duration-300 group-hover/map:scale-[1.03]">
+        <Map
+          initialViewState={{
+            latitude: report.latitude,
+            longitude: report.longitude,
+            zoom: 15,
+          }}
+          style={{ width: "100%", height: "100%" }}
+          mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
+          attributionControl={false}
+          dragPan={false}
+          dragRotate={false}
+          scrollZoom={false}
+          doubleClickZoom={false}
+          touchZoomRotate={false}
+          keyboard={false}
+          interactive={false}
+        >
+          <Marker latitude={report.latitude} longitude={report.longitude} anchor="bottom">
+            <div
+              className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white shadow-lg"
+              style={{ backgroundColor: CATEGORY_COLORS[report.category] }}
+              title={CATEGORY_LABELS[report.category] ?? report.category}
+            >
+              <MapPin className="h-4 w-4 text-white" />
+            </div>
+          </Marker>
+        </Map>
+      </div>
+
+      <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-card/90 px-2 py-1 text-[11px] font-medium text-foreground opacity-0 shadow-sm backdrop-blur-md transition group-hover/map:opacity-100 group-focus-visible/map:opacity-100">
+        <Expand className="h-3 w-3" />
+        Arată pe hartă
+      </span>
+    </button>
   );
 }
 
@@ -91,6 +111,16 @@ export default function MyReportsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  const openReportOnMap = (report: Report) => {
+    const searchParams = new URLSearchParams({
+      reportId: String(report.id),
+      lat: String(report.latitude),
+      lng: String(report.longitude),
+    });
+
+    navigate(`/reports?${searchParams.toString()}`);
+  };
 
   useEffect(() => {
     const reportsWithoutAddress = reports.filter((report) => !report.address?.trim());
@@ -259,13 +289,20 @@ export default function MyReportsPage() {
         ) : (
           <div className="flex flex-col gap-3 pb-6">
             {filtered.map((r) => (
-              <button
+              <article
                 key={r.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => navigate(`/reports/${r.id}`)}
-                className="group w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  navigate(`/reports/${r.id}`);
+                }}
+                className="group w-full cursor-pointer rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md"
               >
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-[260px_1fr]">
-                  <MiniMap report={r} />
+                  <MiniMap report={r} onShowOnMap={openReportOnMap} />
 
                   <div className="flex flex-col gap-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -301,7 +338,7 @@ export default function MyReportsPage() {
                     </div>
                   </div>
                 </div>
-              </button>
+              </article>
             ))}
           </div>
         )}

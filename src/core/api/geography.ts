@@ -1,11 +1,10 @@
 import { apiFetch } from "@/core/api/http";
+import { API_BASE_URL as BASE_URL } from "@/core/config/api";
 import type {
   GeographyCity,
   GeographyCountry,
   GeographyState,
 } from "@/shared/types";
-
-const BASE_URL = "http://localhost:8080/api";
 
 const GEOGRAPHY_COUNTRIES_ENDPOINT = `${BASE_URL}/geography/countries`;
 const GEOGRAPHY_STATES_ENDPOINT = `${BASE_URL}/geography/states`;

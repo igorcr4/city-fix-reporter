@@ -34,7 +34,12 @@ export function ProfileMenu() {
           <User className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent
+        align="end"
+        collisionPadding={16}
+        sideOffset={8}
+        className="w-48 max-w-[calc(100vw-2rem)]"
+      >
         <div className="px-2 py-1.5">
           <p className="text-sm font-medium text-foreground">{user.username}</p>
           <p className="text-xs text-muted-foreground">{user.email}</p>

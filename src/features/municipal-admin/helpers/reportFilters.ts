@@ -4,7 +4,6 @@ import type {
   MunicipalReportCategoryFilter,
   MunicipalReportFilters,
   MunicipalReportStatusFilter,
-  MunicipalScope,
 } from "@/features/municipal-admin/types";
 
 export const MUNICIPAL_REPORT_CATEGORIES: MunicipalReportCategoryFilter[] = [
@@ -30,33 +29,6 @@ function normalizeText(value: string | null | undefined): string {
     .toLocaleLowerCase()
     .trim()
     .replace(/\s+/g, " ");
-}
-
-export function reportBelongsToMunicipality(
-  report: Report,
-  scope: MunicipalScope
-): boolean {
-  if (scope.municipalityId != null && report.municipalityId != null) {
-    return scope.municipalityId === report.municipalityId;
-  }
-
-  const normalizedMunicipality = normalizeText(scope.municipalityName);
-  if (!normalizedMunicipality) return false;
-
-  const candidateFields = [
-    report.municipalityName,
-    report.city,
-    report.state,
-    report.address,
-  ]
-    .map((value) => normalizeText(value))
-    .filter(Boolean);
-
-  return candidateFields.some(
-    (candidate) =>
-      candidate === normalizedMunicipality ||
-      candidate.includes(normalizedMunicipality)
-  );
 }
 
 export function filterAndSortMunicipalReports(

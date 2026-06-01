@@ -1,14 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/core/auth/AuthContext";
-import { getReportById, deleteReport } from "@/core/api/api";
+import {
+  deleteReport,
+  getReportById,
+  reverseGeocodeCoordinates,
+} from "@/core/api/api";
 import type { Report } from "@/shared/types";
 import { CATEGORY_LABELS } from "@/shared/types";
 import { StatusBadge } from "@/features/reports/components/StatusBadge";
 import { Header } from "@/shared/components/layout/Header";
 import { Button } from "@/shared/components/ui/button";
 import { toast } from "@/shared/hooks/use-toast";
-import { ArrowLeft, Calendar, Edit, Trash2, User } from "lucide-react";
+import { ArrowLeft, Calendar, Edit, MapPin, Trash2, User } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function ReportDetailPage() {
@@ -17,6 +21,7 @@ export default function ReportDetailPage() {
   const navigate = useNavigate();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
+  const [addressLoading, setAddressLoading] = useState(false);
 
   const loadReport = useCallback(async () => {
     if (!id) {
@@ -50,6 +55,41 @@ export default function ReportDetailPage() {
     loadReport();
   }, [loadReport]);
 
+  useEffect(() => {
+    if (!report || report.address?.trim()) return;
+
+    let cancelled = false;
+    setAddressLoading(true);
+
+    reverseGeocodeCoordinates(report.latitude, report.longitude)
+      .then((address) => {
+        if (cancelled || !address) return;
+
+        setReport((current) =>
+          current && current.id === report.id
+            ? {
+                ...current,
+                address,
+              }
+            : current
+        );
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("REPORT DETAIL ADDRESS RESOLVE ERROR:", error);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setAddressLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [report]);
+
   const handleDelete = async () => {
     if (!report || !confirm("Sigur vrei să ștergi acest raport?")) return;
 
@@ -82,6 +122,7 @@ export default function ReportDetailPage() {
   }
 
   const isOwner = user?.id === report.userId;
+  const displayAddress = report.address?.trim();
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -129,6 +170,21 @@ export default function ReportDetailPage() {
             <p className="text-sm leading-relaxed text-foreground/90 md:text-base">
               {report.description}
             </p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-muted/40 p-4">
+            <p className="mb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
+              Adresă
+            </p>
+            <div className="flex items-start gap-2 text-sm leading-relaxed text-foreground/90 md:text-base">
+              <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+              <span>
+                {displayAddress ||
+                  (addressLoading
+                    ? "Se caută adresa pentru locația raportului..."
+                    : "Adresa nu este disponibilă.")}
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">

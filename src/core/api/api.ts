@@ -6,11 +6,10 @@ import type {
   UpdateReportRequest,
   User,
 } from "@/shared/types";
+import { API_BASE_URL as BASE_URL } from "@/core/config/api";
 import { apiFetch } from "@/core/api/http";
 import { isJwtExpired } from "@/core/auth/jwt";
 import { getUserRoles } from "@/core/auth/roles";
-
-const BASE_URL = "http://localhost:8080/api";
 
 interface RawUser {
   id?: number;
@@ -300,10 +299,12 @@ export async function reverseGeocodeLocationDetails(
   url.searchParams.set("lon", String(longitude));
   url.searchParams.set("zoom", "18");
   url.searchParams.set("addressdetails", "1");
+  url.searchParams.set("accept-language", "en");
 
   const res = await fetch(url.toString(), {
     headers: {
       Accept: "application/json",
+      "Accept-Language": "en",
     },
   });
 
@@ -406,7 +407,7 @@ export async function getMyReports(): Promise<Report[]> {
 
   const raw = (await res.json()) as unknown;
   return Array.isArray(raw)
-    ? raw.map((item) => normalizeReport(item as RawReport))
+    ? raw.map((item) => normalizeReportResponse(item))
     : [];
 }
 

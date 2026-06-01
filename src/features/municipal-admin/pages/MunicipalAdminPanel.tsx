@@ -28,7 +28,6 @@ import type {
   MunicipalReportFilters,
   MunicipalReportSort,
   MunicipalReportStatusFilter,
-  MunicipalReportsSource,
 } from "@/features/municipal-admin/types";
 import type { Report, ReportStatus } from "@/shared/types";
 import { Header } from "@/shared/components/layout/Header";
@@ -54,18 +53,12 @@ export default function MunicipalAdminPanelPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [filters, setFilters] = useState<MunicipalReportFilters>(INITIAL_FILTERS);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [dataSource, setDataSource] = useState<MunicipalReportsSource | null>(null);
-  const [recommendedEndpoint, setRecommendedEndpoint] = useState<string | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
   const [statusDialogReport, setStatusDialogReport] = useState<Report | null>(null);
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
-
-  const scope = useMemo(
-    () => ({
-      municipalityId: user?.municipalityId ?? null,
-      municipalityName: user?.municipalityName ?? null,
-    }),
-    [user?.municipalityId, user?.municipalityName]
+  const municipalityLabel = useMemo(
+    () => user?.municipalityName?.trim() || "Municipalitatea ta",
+    [user?.municipalityName]
   );
 
   useEffect(() => {
@@ -82,18 +75,6 @@ export default function MunicipalAdminPanelPage() {
   const loadReports = async (mode: "initial" | "refresh" = "initial") => {
     if (!user) return;
 
-    if (!scope.municipalityId && !scope.municipalityName) {
-      setReports([]);
-      setDataSource(null);
-      setRecommendedEndpoint(null);
-      setLoading(false);
-      setRefreshing(false);
-      setErrorMessage(
-        "Contul tău de municipal admin nu are încă o municipalitate alocată."
-      );
-      return;
-    }
-
     if (mode === "initial") {
       setLoading(true);
     } else {
@@ -103,10 +84,8 @@ export default function MunicipalAdminPanelPage() {
     setErrorMessage(null);
 
     try {
-      const result = await getMunicipalAdminReports(scope);
-      setReports(result.reports);
-      setDataSource(result.source);
-      setRecommendedEndpoint(result.recommendedEndpoint ?? null);
+      const nextReports = await getMunicipalAdminReports();
+      setReports(nextReports);
     } catch (error) {
       console.error("LOAD MUNICIPAL REPORTS ERROR:", error);
       setReports([]);
@@ -129,7 +108,7 @@ export default function MunicipalAdminPanelPage() {
   useEffect(() => {
     if (!user || !isMunicipalAdminUser(user)) return;
     void loadReports("initial");
-  }, [scope, user]);
+  }, [user]);
 
   const filteredReports = useMemo(
     () => filterAndSortMunicipalReports(reports, filters),
@@ -231,7 +210,7 @@ export default function MunicipalAdminPanelPage() {
                 <div className="flex flex-wrap gap-3 text-sm text-white/80">
                   <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
                     <Building2 className="h-4 w-4" />
-                    {scope.municipalityName || "Municipalitate nealocată"}
+                    {municipalityLabel}
                   </span>
                   <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1">
                     <LayoutDashboard className="h-4 w-4" />
@@ -269,18 +248,6 @@ export default function MunicipalAdminPanelPage() {
         </section>
 
         <MunicipalDashboardSummary summary={dashboardSummary} />
-
-        {dataSource === "client-fallback" && (
-          <Alert>
-            <AlertTitle>Fallback client-side activ</AlertTitle>
-            <AlertDescription>
-              Panelul funcționează, dar pentru izolare strictă pe municipalitate
-              backend-ul ar trebui să expună un endpoint dedicat precum{" "}
-              <span className="font-mono">{recommendedEndpoint}</span>. Până
-              atunci, filtrarea se face pe client pe baza datelor deja primite.
-            </AlertDescription>
-          </Alert>
-        )}
 
         {errorMessage && (
           <Alert variant="destructive">

@@ -6,11 +6,15 @@ import {
   useEffect,
   useRef,
 } from "react";
-import { getCountries, getStates } from "@/core/api/geography";
+import { getCities, getCountries, getStates } from "@/core/api/geography";
 import type { ReportCategory, CreateReportRequest, UpdateReportRequest } from "@/shared/types";
-import type { GeographyCountry, GeographyState } from "@/shared/types";
+import type { GeographyCity, GeographyCountry, GeographyState } from "@/shared/types";
 import { CATEGORY_LABELS } from "@/shared/types";
 import { reverseGeocodeLocationDetails } from "@/core/api/api";
+import {
+  getAdministrativeMatchKey,
+  normalizeAdministrativeLocation,
+} from "@/core/location/administrativeLocation";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -49,12 +53,7 @@ const categories: ReportCategory[] = [
 ];
 
 function normalizeGeographyLabel(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase()
-    .trim()
-    .replace(/\s+/g, " ");
+  return getAdministrativeMatchKey(value);
 }
 
 export function ReportForm({
@@ -84,8 +83,10 @@ export function ReportForm({
   const [city, setCity] = useState("");
   const [countries, setCountries] = useState<GeographyCountry[]>([]);
   const [states, setStates] = useState<GeographyState[]>([]);
+  const [cities, setCities] = useState<GeographyCity[]>([]);
   const [countriesLoading, setCountriesLoading] = useState(false);
   const [statesLoading, setStatesLoading] = useState(false);
+  const [citiesLoading, setCitiesLoading] = useState(false);
   const [geographyError, setGeographyError] = useState<string | null>(null);
   const [locationDetailsError, setLocationDetailsError] = useState<string | null>(
     null
@@ -184,9 +185,14 @@ export function ReportForm({
       .then((details) => {
         if (cancelled) return;
         const nextDetectedAddress = details.address ?? "";
-        const nextDetectedCountry = details.country ?? "";
-        const nextDetectedState = details.state ?? "";
-        const nextDetectedCity = details.city ?? "";
+        const normalizedLocation = normalizeAdministrativeLocation({
+          country: details.country,
+          state: details.state,
+          city: details.city,
+        });
+        const nextDetectedCountry = normalizedLocation.country;
+        const nextDetectedState = normalizedLocation.state;
+        const nextDetectedCity = normalizedLocation.city;
 
         setDetectedAddress(nextDetectedAddress);
         setDetectedCountry(nextDetectedCountry);
@@ -273,9 +279,21 @@ export function ReportForm({
     setCity(e.target.value);
   };
 
-  const isDetectedCountryComplete = detectedCountry.trim().length > 0;
-  const isDetectedStateComplete = detectedState.trim().length > 0;
-  const isDetectedCityComplete = detectedCity.trim().length > 0;
+  const normalizedAdministrativeLocation = normalizeAdministrativeLocation({
+    country,
+    state,
+    city,
+  }, {
+    countries: countries.map((item) => item.name),
+    states: states.map((item) => item.name),
+    cities: cities.map((item) => item.name),
+  });
+  const isDetectedCountryComplete =
+    normalizedAdministrativeLocation.country.trim().length > 0;
+  const isDetectedStateComplete =
+    normalizedAdministrativeLocation.state.trim().length > 0;
+  const isDetectedCityComplete =
+    normalizedAdministrativeLocation.city.trim().length > 0;
   const hasDetectedAdministrativeDetails =
     isDetectedCountryComplete &&
     isDetectedStateComplete &&
@@ -290,13 +308,15 @@ export function ReportForm({
   const matchedCountry =
     countries.find(
       (item) =>
-        normalizeGeographyLabel(item.name) === normalizeGeographyLabel(country)
+        normalizeGeographyLabel(item.name) ===
+        normalizeGeographyLabel(normalizedAdministrativeLocation.country)
     ) ?? null;
   const selectedCountryIso2 = matchedCountry?.iso2 ?? "";
   const matchedState =
     states.find(
       (item) =>
-        normalizeGeographyLabel(item.name) === normalizeGeographyLabel(state)
+        normalizeGeographyLabel(item.name) ===
+        normalizeGeographyLabel(normalizedAdministrativeLocation.state)
     ) ?? null;
   const selectedStateIso2 = matchedState?.iso2 ?? "";
 
@@ -318,16 +338,18 @@ export function ReportForm({
   useEffect(() => {
     if (!shouldShowAdministrativeFallback) {
       setGeographyError(null);
-      setStates([]);
       setStatesLoading(false);
+      setCitiesLoading(false);
       return;
     }
   }, [shouldShowAdministrativeFallback]);
 
   useEffect(() => {
     if (
-      !shouldShowAdministrativeFallback ||
-      (!shouldShowCountryFallback && !shouldShowStateFallback) ||
+      isEditMode ||
+      latitude === null ||
+      longitude === null ||
+      locationDetailsLoading ||
       countries.length > 0
     ) {
       return;
@@ -362,13 +384,20 @@ export function ReportForm({
     };
   }, [
     countries.length,
-    shouldShowAdministrativeFallback,
-    shouldShowCountryFallback,
-    shouldShowStateFallback,
+    isEditMode,
+    latitude,
+    longitude,
+    locationDetailsLoading,
   ]);
 
   useEffect(() => {
-    if (!shouldShowStateFallback || !selectedCountryIso2) {
+    if (
+      isEditMode ||
+      latitude === null ||
+      longitude === null ||
+      locationDetailsLoading ||
+      !selectedCountryIso2
+    ) {
       setStates([]);
       setStatesLoading(false);
       return;
@@ -402,7 +431,64 @@ export function ReportForm({
     return () => {
       cancelled = true;
     };
-  }, [selectedCountryIso2, shouldShowStateFallback]);
+  }, [
+    isEditMode,
+    latitude,
+    longitude,
+    locationDetailsLoading,
+    selectedCountryIso2,
+  ]);
+
+  useEffect(() => {
+    if (
+      isEditMode ||
+      latitude === null ||
+      longitude === null ||
+      locationDetailsLoading ||
+      !selectedCountryIso2 ||
+      !selectedStateIso2
+    ) {
+      setCities([]);
+      setCitiesLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    setCities([]);
+    setCitiesLoading(true);
+    setGeographyError(null);
+
+    getCities(selectedCountryIso2, selectedStateIso2)
+      .then((data) => {
+        if (cancelled) return;
+        setCities(data);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setCities([]);
+        setGeographyError(
+          error instanceof Error
+            ? error.message
+            : "Nu s-a putut încărca lista de orașe pentru regiunea selectată."
+        );
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setCitiesLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isEditMode,
+    latitude,
+    longitude,
+    locationDetailsLoading,
+    selectedCountryIso2,
+    selectedStateIso2,
+  ]);
 
   const restoreDetectedAddress = () => {
     setAddress(detectedAddress);
@@ -441,13 +527,15 @@ export function ReportForm({
 
   const isVideo = file?.type.startsWith("video/");
   const isImage = file?.type.startsWith("image/");
+  const administrativeLocationLoading =
+    !isEditMode && (countriesLoading || statesLoading || citiesLoading);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
-    const trimmedCountry = country.trim();
-    const trimmedState = state.trim();
-    const trimmedCity = city.trim();
+    const trimmedCountry = normalizedAdministrativeLocation.country;
+    const trimmedState = normalizedAdministrativeLocation.state;
+    const trimmedCity = normalizedAdministrativeLocation.city;
     const isCreateMediaMissing = !isEditMode && !file;
 
     if (
@@ -456,6 +544,7 @@ export function ReportForm({
       latitude === null ||
       longitude === null ||
       isCreateMediaMissing ||
+      (!isEditMode && administrativeLocationLoading) ||
       (!isEditMode && (!trimmedCountry || !trimmedState || !trimmedCity))
     ) {
       return;
@@ -468,14 +557,14 @@ export function ReportForm({
         category,
         latitude,
         longitude,
-        address: address || undefined,
+        address: address.trim() || undefined,
         file,
         removeImage: removeImage ? true : undefined,
       });
       return;
     }
 
-    onSubmit({
+    const payload = {
       title: title.trim(),
       description: description.trim(),
       category,
@@ -487,14 +576,36 @@ export function ReportForm({
       city: trimmedCity,
       file,
       removeImage: removeImage ? true : undefined,
-    });
+    };
+
+    if (import.meta.env.DEV) {
+      console.info("[ReportForm] create report payload", {
+        rawAdministrativeLocation: {
+          country: country.trim(),
+          state: state.trim(),
+          city: city.trim(),
+        },
+        normalizedAdministrativeLocation: {
+          country: trimmedCountry,
+          state: trimmedState,
+          city: trimmedCity,
+          wasChanged: normalizedAdministrativeLocation.wasChanged,
+        },
+        payload: {
+          ...payload,
+          file: file ? { name: file.name, type: file.type, size: file.size } : null,
+        },
+      });
+    }
+
+    onSubmit(payload);
   };
 
   const trimmedTitle = title.trim();
   const trimmedDescription = description.trim();
-  const trimmedCountry = country.trim();
-  const trimmedState = state.trim();
-  const trimmedCity = city.trim();
+  const trimmedCountry = normalizedAdministrativeLocation.country;
+  const trimmedState = normalizedAdministrativeLocation.state;
+  const trimmedCity = normalizedAdministrativeLocation.city;
   const isCreateMediaMissing = !isEditMode && !file;
   const areAdministrativeFieldsMissing =
     !trimmedCountry || !trimmedState || !trimmedCity;
@@ -505,12 +616,14 @@ export function ReportForm({
     typeof initialData?.latitude === "number" ? initialData.latitude : null;
   const initialLongitude =
     typeof initialData?.longitude === "number" ? initialData.longitude : null;
+  const initialAddress = initialData?.address?.trim() ?? "";
   const hasFieldChanges =
     trimmedTitle !== initialTitle ||
     trimmedDescription !== initialDescription ||
     category !== initialCategory ||
     latitude !== initialLatitude ||
-    longitude !== initialLongitude;
+    longitude !== initialLongitude ||
+    address.trim() !== initialAddress;
   const hasMediaChanges = !!file || removeImage;
   const hasChanges = !isEditMode || hasFieldChanges || hasMediaChanges;
   const isValid =
@@ -519,6 +632,7 @@ export function ReportForm({
     latitude !== null &&
     longitude !== null &&
     !locationDetailsLoading &&
+    !administrativeLocationLoading &&
     !isCreateMediaMissing &&
     (isEditMode || !areAdministrativeFieldsMissing);
   const submitBlockReason = !trimmedTitle.length
@@ -529,7 +643,11 @@ export function ReportForm({
         ? "Alege locația raportului pe hartă."
         : locationDetailsLoading
           ? "Se procesează locația aleasă. Mai încearcă în câteva secunde."
-          : null;
+          : administrativeLocationLoading
+            ? "Se verifică datele administrative ale locației."
+          : !isEditMode && areAdministrativeFieldsMissing
+            ? "Completează țara, regiunea și orașul pentru locația raportului."
+            : null;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -763,12 +881,14 @@ export function ReportForm({
             )}
           </div>
 
-          {(countriesLoading || statesLoading) && (
+          {(countriesLoading || statesLoading || citiesLoading) && (
             <p className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {statesLoading
-                ? "Se încarcă regiunile pentru țara selectată..."
-                : "Se încarcă lista de țări..."}
+              {citiesLoading
+                ? "Se verifică orașul pentru regiunea selectată..."
+                : statesLoading
+                  ? "Se încarcă regiunile pentru țara selectată..."
+                  : "Se încarcă lista de țări..."}
             </p>
           )}
 
@@ -875,10 +995,6 @@ export function ReportForm({
               un video.
             </p>
           )}
-
-          <p className="text-xs text-muted-foreground">
-            Momentan backend-ul suportă un singur fișier per raport.
-          </p>
         </div>
       </div>
 

@@ -1,11 +1,7 @@
-import { getAllReports, normalizeReportResponse, updateReport } from "@/core/api/api";
+import { normalizeReportResponse, updateReport } from "@/core/api/api";
 import { apiFetch } from "@/core/api/http";
-import type { MunicipalReportsResult, MunicipalScope } from "@/features/municipal-admin/types";
-import { reportBelongsToMunicipality } from "@/features/municipal-admin/helpers/reportFilters";
+import { API_BASE_URL as BASE_URL } from "@/core/config/api";
 import type { Report, ReportStatus } from "@/shared/types";
-
-const BASE_URL = "http://localhost:8080/api";
-const RECOMMENDED_BACKEND_ENDPOINT = "GET /api/reports/municipal-admin";
 
 function extractListPayload<T>(raw: unknown): T[] {
   if (Array.isArray(raw)) return raw as T[];
@@ -47,75 +43,31 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
   }
 }
 
-function getCandidateEndpoints(scope: MunicipalScope): string[] {
-  const endpoints = [
-    `${BASE_URL}/reports/municipal-admin`,
-    `${BASE_URL}/reports/municipality-admin`,
-    `${BASE_URL}/municipal-admin/reports`,
-  ];
+export async function getMunicipalAdminReports(): Promise<Report[]> {
+  const res = await apiFetch(`${BASE_URL}/reports/municipal-admin`);
 
-  if (scope.municipalityId != null) {
-    endpoints.push(`${BASE_URL}/reports/municipality/${scope.municipalityId}`);
-  }
-
-  return endpoints;
-}
-
-export async function getMunicipalAdminReports(
-  scope: MunicipalScope
-): Promise<MunicipalReportsResult> {
-  for (const endpoint of getCandidateEndpoints(scope)) {
-    const res = await apiFetch(endpoint);
-
-    if (res.status === 404 || res.status === 405) {
-      continue;
-    }
-
-    if (!res.ok) {
-      throw new Error(
-        await parseErrorMessage(
-          res,
-          "Nu s-au putut încărca rapoartele municipalității."
-        )
-      );
-    }
-
-    if (res.status === 204) {
-      return {
-        reports: [],
-        source: "backend-scoped",
-        recommendedEndpoint: null,
-      };
-    }
-
-    const raw = await res.json().catch(() => null);
-    if (!raw) {
-      return {
-        reports: [],
-        source: "backend-scoped",
-        recommendedEndpoint: null,
-      };
-    }
-
-    const list = extractListPayload<unknown>(raw);
-    const normalized = (list.length > 0 ? list : [raw]).map((item) =>
-      normalizeReportResponse(item)
+  if (!res.ok) {
+    throw new Error(
+      await parseErrorMessage(
+        res,
+        "Nu s-au putut încărca rapoartele municipalității."
+      )
     );
-
-    return {
-      reports: normalized,
-      source: "backend-scoped",
-      recommendedEndpoint: null,
-    };
   }
 
-  const reports = await getAllReports();
+  if (res.status === 204) {
+    return [];
+  }
 
-  return {
-    reports: reports.filter((report) => reportBelongsToMunicipality(report, scope)),
-    source: "client-fallback",
-    recommendedEndpoint: RECOMMENDED_BACKEND_ENDPOINT,
-  };
+  const raw = await res.json().catch(() => null);
+  if (!raw) {
+    return [];
+  }
+
+  const list = extractListPayload<unknown>(raw);
+  return (list.length > 0 ? list : [raw]).map((item) =>
+    normalizeReportResponse(item)
+  );
 }
 
 export async function updateMunicipalReportStatus(
