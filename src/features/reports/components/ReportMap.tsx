@@ -1,6 +1,10 @@
-import { useRef, useState, useCallback, useEffect } from "react";
-import Map, { Marker, Popup } from "react-map-gl/maplibre";
-import type { MapRef } from "react-map-gl/maplibre";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import MapView, { Marker, Popup } from "react-map-gl/maplibre";
+import type {
+  GeoJSONSource,
+  MapLayerMouseEvent,
+  MapRef,
+} from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Report } from "@/shared/types";
 import {
@@ -13,14 +17,26 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import {
   ExternalLink,
-  MapPin,
   Crosshair,
   Loader2,
   Compass,
+  Activity,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { StatusBadge } from "@/features/reports/components/StatusBadge";
 import { toast } from "@/shared/hooks/use-toast";
+import {
+  ReportClusterLayer,
+  REPORT_CLUSTER_COUNT_LAYER_ID,
+  REPORT_CLUSTER_INTERACTIVE_LAYER_IDS,
+  REPORT_CLUSTER_SOURCE_ID,
+  REPORT_CLUSTERS_LAYER_ID,
+  REPORT_FOCUSED_LAYER_ID,
+  REPORT_MARKER_ICON_IDS,
+  REPORT_UNCLUSTERED_LAYER_ID,
+} from "@/features/reports/components/ReportClusterLayer";
+import { ReportHeatmapLayer } from "@/features/reports/components/ReportHeatmapLayer";
+import { createReportMapPointData } from "@/features/reports/helpers/reportMapGeoJson";
 
 interface ReportMapProps {
   reports: Report[];
@@ -30,6 +46,45 @@ interface ReportMapProps {
     latitude: number;
     longitude: number;
   } | null;
+}
+
+function createReportMarkerSvg(color: string): string {
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <circle cx="32" cy="34" r="26" fill="#0f172a" opacity="0.16"/>
+  <circle cx="32" cy="30" r="26" fill="${color}" stroke="#ffffff" stroke-width="4"/>
+  <svg x="16" y="14" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/>
+    <circle cx="12" cy="10" r="3"/>
+  </svg>
+</svg>
+`;
+}
+
+function loadReportMarkerIcon(color: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image(64, 64);
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+      createReportMarkerSvg(color)
+    )}`;
+  });
+}
+
+async function loadReportMarkerIcons(): Promise<
+  Array<[string, HTMLImageElement]>
+> {
+  return Promise.all(
+    Object.entries(REPORT_MARKER_ICON_IDS).map(
+      async ([category, iconId]): Promise<[string, HTMLImageElement]> => [
+        iconId,
+        await loadReportMarkerIcon(
+          CATEGORY_COLORS[category as keyof typeof CATEGORY_COLORS]
+        ),
+      ]
+    )
+  );
 }
 
 export function ReportMap({
@@ -44,6 +99,14 @@ export function ReportMap({
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
+  const [isHeatmapVisible, setIsHeatmapVisible] = useState(false);
+
+  const reportPointData = useMemo(() => createReportMapPointData(reports), [reports]);
+  const hasReportPoints = reportPointData.features.length > 0;
+  const reportsById = useMemo(
+    () => new Map(reports.map((report) => [report.id, report])),
+    [reports]
+  );
 
   const flyToLocation = useCallback(
     (location: { lat: number; lng: number }, resetOrientation = false) => {
@@ -151,6 +214,110 @@ export function ReportMap({
     });
   }, []);
 
+  const ensureReportMarkerIcon = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    if (!map) return;
+
+    const missingIconIds = Object.values(REPORT_MARKER_ICON_IDS).filter(
+      (iconId) => !map.hasImage(iconId)
+    );
+
+    if (missingIconIds.length === 0) return;
+
+    void loadReportMarkerIcons()
+      .then((icons) => {
+        for (const [iconId, image] of icons) {
+          if (!map.hasImage(iconId)) {
+            map.addImage(iconId, image, { pixelRatio: 2 });
+          }
+        }
+      })
+      .catch((error) => {
+        console.error("REPORT MARKER ICON LOAD ERROR:", error);
+      });
+  }, []);
+
+  const handleClusterClick = useCallback(
+    (event: MapLayerMouseEvent) => {
+      const feature = event.features?.[0];
+      const clusterId = Number(feature?.properties?.cluster_id);
+
+      if (!Number.isFinite(clusterId)) return;
+
+      const source = mapRef.current
+        ?.getMap()
+        .getSource(REPORT_CLUSTER_SOURCE_ID) as GeoJSONSource | undefined;
+
+      void source
+        ?.getClusterExpansionZoom(clusterId)
+        .then((zoom) => {
+          mapRef.current?.easeTo({
+            center: [event.lngLat.lng, event.lngLat.lat],
+            zoom,
+            duration: 700,
+            essential: true,
+          });
+        })
+        .catch((error) => {
+          console.error("REPORT CLUSTER EXPANSION ERROR:", error);
+        });
+    },
+    []
+  );
+
+  const handleReportPointClick = useCallback(
+    (event: MapLayerMouseEvent) => {
+      const feature = event.features?.[0];
+      const reportId = Number(feature?.properties?.reportId);
+
+      if (!Number.isFinite(reportId)) return;
+
+      const report = reportsById.get(reportId);
+      if (report) {
+        setSelectedReport(report);
+      }
+    },
+    [reportsById]
+  );
+
+  const handleMapClick = useCallback(
+    (event: MapLayerMouseEvent) => {
+      if (isHeatmapVisible) return;
+
+      const layerId = event.features?.[0]?.layer.id;
+
+      if (
+        layerId === REPORT_CLUSTERS_LAYER_ID ||
+        layerId === REPORT_CLUSTER_COUNT_LAYER_ID
+      ) {
+        handleClusterClick(event);
+        return;
+      }
+
+      if (
+        layerId === REPORT_UNCLUSTERED_LAYER_ID ||
+        layerId === REPORT_FOCUSED_LAYER_ID
+      ) {
+        handleReportPointClick(event);
+      }
+    },
+    [handleClusterClick, handleReportPointClick, isHeatmapVisible]
+  );
+
+  const handleInteractiveLayerMouseEnter = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    if (map) {
+      map.getCanvas().style.cursor = "pointer";
+    }
+  }, []);
+
+  const handleInteractiveLayerMouseLeave = useCallback(() => {
+    const map = mapRef.current?.getMap();
+    if (map) {
+      map.getCanvas().style.cursor = "";
+    }
+  }, []);
+
   useEffect(() => {
     if (!focusedLocation) return;
 
@@ -173,9 +340,21 @@ export function ReportMap({
     }
   }, [focusedLocation, focusedReportId, reports]);
 
+  useEffect(() => {
+    if (isHeatmapVisible) {
+      setSelectedReport(null);
+    }
+  }, [isHeatmapVisible]);
+
+  useEffect(() => {
+    if (selectedReport && !reportsById.has(selectedReport.id)) {
+      setSelectedReport(null);
+    }
+  }, [reportsById, selectedReport]);
+
   return (
     <div className={className}>
-      <Map
+      <MapView
         ref={mapRef}
         initialViewState={{
           latitude: focusedLocation?.latitude ?? DEFAULT_MAP_CENTER.lat,
@@ -185,8 +364,15 @@ export function ReportMap({
         style={{ width: "100%", height: "100%" }}
         mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
         attributionControl={false}
+        onLoad={ensureReportMarkerIcon}
+        onStyleData={ensureReportMarkerIcon}
+        interactiveLayerIds={
+          isHeatmapVisible ? undefined : REPORT_CLUSTER_INTERACTIVE_LAYER_IDS
+        }
+        onClick={handleMapClick}
+        onMouseEnter={handleInteractiveLayerMouseEnter}
+        onMouseLeave={handleInteractiveLayerMouseLeave}
       >
-        {/* Butoane reale de zoom */}
         <div className="mobile-map-control-left mobile-map-control-top absolute z-10 overflow-hidden rounded-xl bg-card/90 shadow-md backdrop-blur-md">
           <button
             type="button"
@@ -207,7 +393,6 @@ export function ReportMap({
           </button>
         </div>
 
-        {/* Buton custom pentru locația curentă */}
         <div className="mobile-map-actions-top mobile-map-control-left absolute z-10 flex flex-col gap-2">
           <Button
             type="button"
@@ -238,7 +423,36 @@ export function ReportMap({
           </Button>
         </div>
 
-        {/* Marker pentru locația userului */}
+        <Button
+          type="button"
+          variant={isHeatmapVisible ? "default" : "secondary"}
+          className="mobile-map-control-right mobile-map-control-top absolute z-10 h-11 touch-manipulation gap-2 rounded-xl px-3 shadow-md"
+          onClick={() => setIsHeatmapVisible((current) => !current)}
+          disabled={!hasReportPoints}
+          aria-pressed={isHeatmapVisible}
+          aria-label={
+            isHeatmapVisible
+              ? "Ascunde densitatea rapoartelor"
+              : "Arată densitatea rapoartelor"
+          }
+          title={
+            isHeatmapVisible
+              ? "Ascunde densitatea rapoartelor"
+              : "Arată densitatea rapoartelor"
+          }
+        >
+          <Activity className="h-4 w-4" />
+          <span className="hidden sm:inline">Densitate</span>
+        </Button>
+
+        <ReportHeatmapLayer data={reportPointData} visible={isHeatmapVisible} />
+
+        <ReportClusterLayer
+          data={reportPointData}
+          visible={!isHeatmapVisible}
+          focusedReportId={focusedReportId}
+        />
+
         {userLocation && (
           <Marker
             latitude={userLocation.lat}
@@ -252,35 +466,12 @@ export function ReportMap({
           </Marker>
         )}
 
-        {/* Markere pentru rapoarte */}
-        {reports.map((report) => (
-          <Marker
-            key={report.id}
-            latitude={report.latitude}
-            longitude={report.longitude}
-            anchor="bottom"
-            onClick={(e) => {
-              e.originalEvent.stopPropagation();
-              setSelectedReport(report);
-            }}
-          >
-            <div
-              className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-2 border-white shadow-lg transition-transform hover:scale-110 ${
-                focusedReportId === report.id ? "ring-4 ring-primary/30" : ""
-              }`}
-              style={{ backgroundColor: CATEGORY_COLORS[report.category] }}
-            >
-              <MapPin className="h-4 w-4 text-white" />
-            </div>
-          </Marker>
-        ))}
-
         {selectedReport && (
           <Popup
             latitude={selectedReport.latitude}
             longitude={selectedReport.longitude}
             anchor="bottom"
-            offset={[0, -36]}
+            offset={[0, -16]}
             onClose={() => setSelectedReport(null)}
             closeOnClick={false}
             className="report-popup"
@@ -322,7 +513,7 @@ export function ReportMap({
             </div>
           </Popup>
         )}
-      </Map>
+      </MapView>
     </div>
   );
 }

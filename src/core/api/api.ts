@@ -10,6 +10,10 @@ import { API_BASE_URL as BASE_URL } from "@/core/config/api";
 import { apiFetch } from "@/core/api/http";
 import { isJwtExpired } from "@/core/auth/jwt";
 import { getUserRoles } from "@/core/auth/roles";
+import {
+  localizeAdministrativeText,
+  localizeAdministrativeValue,
+} from "@/core/location/administrativeLocation";
 
 interface RawUser {
   id?: number;
@@ -150,7 +154,7 @@ function normalizeReportStatus(status: string | null | undefined): Report["statu
       return "IN_PROGRESS";
     case "RESOLVED":
     case "FIXED":
-      return "FIXED";
+      return "RESOLVED";
     default:
       return "NEW";
   }
@@ -176,15 +180,16 @@ export function normalizeReportResponse(rawValue: unknown): Report {
     username: raw.username ?? raw.user?.username ?? "Necunoscut",
     latitude: raw.latitude,
     longitude: raw.longitude,
-    address: raw.address ?? undefined,
-    country: raw.country ?? null,
-    state: raw.state ?? null,
-    city: raw.city ?? null,
+    address: localizeAdministrativeText(raw.address) || undefined,
+    country: localizeAdministrativeValue("country", raw.country) || null,
+    state: localizeAdministrativeValue("state", raw.state) || null,
+    city: localizeAdministrativeValue("city", raw.city) || null,
     municipalityId:
       municipalityId !== null && municipalityId !== undefined
         ? Number(municipalityId)
         : null,
-    municipalityName: municipalityName ?? null,
+    municipalityName:
+      localizeAdministrativeValue("city", municipalityName) || null,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt ?? null,
   };
@@ -299,12 +304,12 @@ export async function reverseGeocodeLocationDetails(
   url.searchParams.set("lon", String(longitude));
   url.searchParams.set("zoom", "18");
   url.searchParams.set("addressdetails", "1");
-  url.searchParams.set("accept-language", "en");
+  url.searchParams.set("accept-language", "ro");
 
   const res = await fetch(url.toString(), {
     headers: {
       Accept: "application/json",
-      "Accept-Language": "en",
+      "Accept-Language": "ro",
     },
   });
 
@@ -327,14 +332,12 @@ export async function reverseGeocodeLocationDetails(
   const country = address.country ?? null;
 
   return {
-    address: formatted || null,
-    country: country?.trim() || null,
-    state: stateSelection.value,
-    city: city?.trim() || null,
+    address: localizeAdministrativeText(formatted) || null,
+    country: localizeAdministrativeValue("country", country) || null,
+    state: localizeAdministrativeValue("state", stateSelection.value) || null,
+    city: localizeAdministrativeValue("city", city) || null,
   };
 }
-
-// ==================== AUTH ====================
 
 export async function login(data: LoginRequest): Promise<User> {
   const res = await fetch(`${BASE_URL}/auth/login`, {
@@ -355,7 +358,6 @@ export async function login(data: LoginRequest): Promise<User> {
     token: raw.token,
   });
 
-  // ✅ mapare backend -> frontend
   return {
     id: raw.userId ?? raw.id ?? 0,
     username: raw.username,
@@ -364,7 +366,8 @@ export async function login(data: LoginRequest): Promise<User> {
     role: normalizedRoles[0] ?? undefined,
     roles: normalizedRoles,
     municipalityId: raw.municipalityId ?? null,
-    municipalityName: raw.municipalityName ?? null,
+    municipalityName:
+      localizeAdministrativeValue("city", raw.municipalityName) || null,
   } satisfies User;
 }
 
@@ -376,20 +379,14 @@ export async function register(data: RegisterRequest): Promise<void> {
   });
 
   if (!res.ok) {
-    let errorMessage = "Înregistrare eșuată";
-    try {
-      errorMessage = await res.text();
-    } catch {
-      // ignore body parsing failure and keep generic register error
-    }
+    const errorText = await res.text().catch(() => "");
+    const errorMessage = errorText || "Înregistrare eșuată";
     console.error("REGISTER ERROR:", res.status, errorMessage);
     throw new Error(`${res.status} - ${errorMessage}`);
   }
 
   return;
 }
-
-// ==================== REPORTS ====================
 
 export async function getAllReports(): Promise<Report[]> {
   const res = await apiFetch(`${BASE_URL}/reports`);

@@ -4,7 +4,7 @@ import { cn } from "@/shared/utils/utils";
 const statusStyles: Record<ReportStatus, string> = {
   NEW: "bg-status-open-bg text-status-open",
   IN_PROGRESS: "bg-status-in-progress-bg text-status-in-progress",
-  FIXED: "bg-status-resolved-bg text-status-resolved",
+  RESOLVED: "bg-status-resolved-bg text-status-resolved",
 };
 
 export function StatusBadge({ status }: { status: ReportStatus }) {

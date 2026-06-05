@@ -72,13 +72,11 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* Root inteligent */}
       <Route
         path="/"
         element={<Navigate to={isAuthenticated ? "/reports" : "/auth"} replace />}
       />
 
-      {/* Auth doar pentru useri nelogați */}
       <Route
         path="/auth"
         element={
@@ -88,7 +86,6 @@ function AppRoutes() {
         }
       />
 
-      {/* Rute protejate */}
       <Route
         path="/reports"
         element={

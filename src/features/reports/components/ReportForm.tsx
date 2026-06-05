@@ -13,6 +13,7 @@ import { CATEGORY_LABELS } from "@/shared/types";
 import { reverseGeocodeLocationDetails } from "@/core/api/api";
 import {
   getAdministrativeMatchKey,
+  localizeAdministrativeText,
   normalizeAdministrativeLocation,
 } from "@/core/location/administrativeLocation";
 import { Button } from "@/shared/components/ui/button";
@@ -536,6 +537,7 @@ export function ReportForm({
     const trimmedCountry = normalizedAdministrativeLocation.country;
     const trimmedState = normalizedAdministrativeLocation.state;
     const trimmedCity = normalizedAdministrativeLocation.city;
+    const trimmedAddress = localizeAdministrativeText(address.trim());
     const isCreateMediaMissing = !isEditMode && !file;
 
     if (
@@ -557,7 +559,7 @@ export function ReportForm({
         category,
         latitude,
         longitude,
-        address: address.trim() || undefined,
+        address: trimmedAddress || undefined,
         file,
         removeImage: removeImage ? true : undefined,
       });
@@ -570,7 +572,7 @@ export function ReportForm({
       category,
       latitude,
       longitude,
-      address: address.trim() || undefined,
+      address: trimmedAddress || undefined,
       country: trimmedCountry,
       state: trimmedState,
       city: trimmedCity,
@@ -906,7 +908,6 @@ export function ReportForm({
         <Label>{isEditMode ? "Fișier media" : "Fișier media *"}</Label>
 
         <div className="flex flex-col gap-2">
-          {/* ✅ Butoanele apar DOAR când există media */}
           {hasAnyMedia && (
             <div className="flex flex-wrap gap-2">
               <Button
@@ -933,7 +934,6 @@ export function ReportForm({
             </div>
           )}
 
-          {/* input hidden */}
           <input
             ref={fileInputRef}
             type="file"
@@ -943,7 +943,6 @@ export function ReportForm({
             className="hidden"
           />
 
-          {/* Preview: fișier nou */}
           {!removeImage && preview && isImage && (
             <img
               src={preview}
@@ -960,7 +959,6 @@ export function ReportForm({
             />
           )}
 
-          {/* Preview: imagine existentă */}
           {!removeImage && !preview && existingImageUrl && (
             <div className="mt-2 overflow-hidden rounded-lg bg-muted">
               <img
@@ -977,7 +975,6 @@ export function ReportForm({
             </p>
           )}
 
-          {/* ✅ Când NU există media, rămâne doar zona mare ca înainte */}
           {!hasAnyMedia && (
             <label
               onClick={openFilePicker}

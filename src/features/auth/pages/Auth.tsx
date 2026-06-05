@@ -15,11 +15,9 @@ export default function AuthPage() {
   const { setUser } = useAuth();
   const navigate = useNavigate();
 
-  // Login state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
-  // Register state
   const [regUsername, setRegUsername] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
@@ -84,7 +82,6 @@ const handleRegister = async (e: FormEvent) => {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      {/* Hero section */}
       <div className="relative h-48 overflow-hidden sm:h-56">
         <img src={heroImage} alt="Oraș" className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-primary/60 to-primary/90" />
@@ -95,7 +92,6 @@ const handleRegister = async (e: FormEvent) => {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="container mt-6 max-w-md">
         <div className="mb-6 flex rounded-lg bg-muted p-1">
           <button

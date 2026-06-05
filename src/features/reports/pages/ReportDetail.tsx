@@ -207,7 +207,6 @@ export default function ReportDetailPage() {
             )}
           </div>
 
-          {/* ✅ Butoanele apar doar dacă e owner */}
           {isOwner && (
             <div className="flex gap-3 pt-2">
               <Button

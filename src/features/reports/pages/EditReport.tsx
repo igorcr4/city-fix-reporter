@@ -10,7 +10,7 @@ import { ArrowLeft } from "lucide-react";
 
 export default function EditReportPage() {
   const { id } = useParams<{ id: string }>();
-  const { isAuthenticated, user } = useAuth(); // ✅ avem și user
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,6 @@ export default function EditReportPage() {
     try {
       const data = await getReportById(Number(id));
 
-      // ✅ GUARD: dacă nu e owner, nu are voie să editeze
       if (!user || user.id !== data.userId) {
         toast({
           title: "Acces interzis",

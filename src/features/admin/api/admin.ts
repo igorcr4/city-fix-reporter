@@ -1,6 +1,7 @@
 import { apiFetch } from "@/core/api/http";
 import { API_BASE_URL as BASE_URL } from "@/core/config/api";
 import { normalizeUserRole } from "@/core/auth/roles";
+import { localizeAdministrativeValue } from "@/core/location/administrativeLocation";
 import type {
   AdminUser,
   PromoteMunicipalAdminPayload,
@@ -43,7 +44,7 @@ function normalizeAdminUser(raw: RawAdminUser): AdminUser {
       municipalityId && municipalityName
         ? {
             id: Number(municipalityId),
-            name: municipalityName,
+            name: localizeAdministrativeValue("city", municipalityName),
           }
         : null,
   };

@@ -5,6 +5,7 @@ import type {
   GeographyCountry,
   GeographyState,
 } from "@/shared/types";
+import { localizeAdministrativeValue } from "@/core/location/administrativeLocation";
 
 const GEOGRAPHY_COUNTRIES_ENDPOINT = `${BASE_URL}/geography/countries`;
 const GEOGRAPHY_STATES_ENDPOINT = `${BASE_URL}/geography/states`;
@@ -47,7 +48,7 @@ function normalizeCountry(raw: RawCountry): GeographyCountry | null {
 
   return {
     id: raw.id,
-    name,
+    name: localizeAdministrativeValue("country", name),
     iso2,
   };
 }
@@ -60,7 +61,7 @@ function normalizeState(raw: RawState): GeographyState | null {
 
   return {
     id: raw.id,
-    name,
+    name: localizeAdministrativeValue("state", name),
     iso2,
   };
 }
@@ -73,7 +74,7 @@ function normalizeCity(raw: RawCity): GeographyCity | null {
 
   return {
     id: Number(id),
-    name,
+    name: localizeAdministrativeValue("city", name),
     countryIso2: raw.countryIso2,
     stateIso2: raw.stateIso2,
   };

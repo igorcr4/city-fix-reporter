@@ -5,6 +5,7 @@ import type {
   MunicipalReportFilters,
   MunicipalReportStatusFilter,
 } from "@/features/municipal-admin/types";
+import { getCriticalReportIds } from "@/features/municipal-admin/helpers/criticalReportZones";
 
 export const MUNICIPAL_REPORT_CATEGORIES: MunicipalReportCategoryFilter[] = [
   "ALL",
@@ -16,10 +17,11 @@ export const MUNICIPAL_REPORT_CATEGORIES: MunicipalReportCategoryFilter[] = [
 ];
 
 export const MUNICIPAL_REPORT_STATUSES: MunicipalReportStatusFilter[] = [
+  "ACTIVE",
   "ALL",
   "NEW",
   "IN_PROGRESS",
-  "FIXED",
+  "RESOLVED",
 ];
 
 function normalizeText(value: string | null | undefined): string {
@@ -37,11 +39,13 @@ export function filterAndSortMunicipalReports(
 ): Report[] {
   const normalizedQuery = normalizeText(filters.search);
 
-  const filtered = reports.filter((report) => {
+  const baseFiltered = reports.filter((report) => {
     const matchesCategory =
       filters.category === "ALL" || report.category === filters.category;
     const matchesStatus =
-      filters.status === "ALL" || report.status === filters.status;
+      filters.status === "ALL" ||
+      (filters.status === "ACTIVE" && report.status !== "RESOLVED") ||
+      report.status === filters.status;
 
     if (!matchesCategory || !matchesStatus) return false;
 
@@ -60,6 +64,13 @@ export function filterAndSortMunicipalReports(
     );
   });
 
+  const criticalReportIds = filters.criticalOnly
+    ? getCriticalReportIds(baseFiltered)
+    : null;
+  const filtered = criticalReportIds
+    ? baseFiltered.filter((report) => criticalReportIds.has(report.id))
+    : baseFiltered;
+
   return filtered.sort((left, right) => {
     const leftTime = new Date(left.createdAt).getTime();
     const rightTime = new Date(right.createdAt).getTime();
@@ -75,11 +86,10 @@ export function getMunicipalDashboardSummary(
 ): MunicipalDashboardSummary {
   return reports.reduce<MunicipalDashboardSummary>(
     (summary, report) => {
-      summary.total += 1;
-
       if (report.status === "NEW") summary.pending += 1;
       if (report.status === "IN_PROGRESS") summary.inProgress += 1;
-      if (report.status === "FIXED") summary.resolved += 1;
+      if (report.status === "RESOLVED") summary.resolved += 1;
+      if (report.status !== "RESOLVED") summary.total += 1;
 
       return summary;
     },
@@ -121,7 +131,7 @@ export function getStatusCounts(
     {
       NEW: 0,
       IN_PROGRESS: 0,
-      FIXED: 0,
+      RESOLVED: 0,
     }
   );
 }

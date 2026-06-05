@@ -1,4 +1,4 @@
-export type ReportStatus = "NEW" | "IN_PROGRESS" | "FIXED";
+export type ReportStatus = "NEW" | "IN_PROGRESS" | "RESOLVED";
 
 export type ReportCategory = "ROAD" | "LIGHTING" | "WASTE" | "VANDALISM" | "OTHER";
 export type UserRole = "ROLE_USER" | "ROLE_MUNICIPAL_ADMIN" | "ROLE_ADMIN";
@@ -104,10 +104,9 @@ export const CATEGORY_LABELS: Record<ReportCategory, string> = {
 export const STATUS_LABELS: Record<ReportStatus, string> = {
   NEW: "Nou",
   IN_PROGRESS: "În lucru",
-  FIXED: "Rezolvat",
+  RESOLVED: "Rezolvat",
 };
 
-/** Colors for map markers by category */
 export const CATEGORY_COLORS: Record<ReportCategory, string> = {
   ROAD: "#e74c3c",
   LIGHTING: "#f39c12",
@@ -116,6 +115,5 @@ export const CATEGORY_COLORS: Record<ReportCategory, string> = {
   OTHER: "#3498db",
 };
 
-/** Default map center (Bucharest) */
 export const DEFAULT_MAP_CENTER = { lat: 44.4268, lng: 26.1025 };
 export const DEFAULT_MAP_ZOOM = 13;

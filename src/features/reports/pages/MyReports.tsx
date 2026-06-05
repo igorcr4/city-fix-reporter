@@ -85,7 +85,6 @@ export default function MyReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // filtre
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<ReportCategory | "ALL">("ALL");
   const [sort, setSort] = useState<SortKey>("newest");
@@ -202,7 +201,6 @@ export default function MyReportsPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      {/* header simplu (FixCity) */}
       <Header showCreateButton={false} showLogoutButton={false} />
 
       <main className="container flex flex-1 flex-col gap-4 py-4">

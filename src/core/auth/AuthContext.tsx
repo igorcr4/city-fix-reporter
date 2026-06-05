@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, type ReactNode }
 import type { User } from "@/shared/types";
 import { getJwtExpirationTime, isJwtExpired } from "@/core/auth/jwt";
 import { getUserRoles } from "@/core/auth/roles";
+import { localizeAdministrativeValue } from "@/core/location/administrativeLocation";
 import {
   clearStoredSession,
   invalidateAuthSession,
@@ -55,7 +56,8 @@ function normalizeStoredUser(raw: StoredUserLike | null | undefined): User | nul
     role: normalizedRoles[0] ?? undefined,
     roles: normalizedRoles,
     municipalityId: raw.municipalityId ?? null,
-    municipalityName: raw.municipalityName ?? null,
+    municipalityName:
+      localizeAdministrativeValue("city", raw.municipalityName) || null,
   };
 }
 

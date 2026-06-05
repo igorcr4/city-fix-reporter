@@ -6,127 +6,108 @@ import { CATEGORY_LABELS } from "@/shared/types";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
-import { cn } from "@/shared/utils/utils";
 
 interface MunicipalReportCardProps {
   report: Report;
-  active?: boolean;
-  onSelect: () => void;
   onOpenDetails: () => void;
-  onOpenStatusDialog: () => void;
+  onOpenUpdateDialog: () => void;
 }
 
 export function MunicipalReportCard({
   report,
-  active = false,
-  onSelect,
   onOpenDetails,
-  onOpenStatusDialog,
+  onOpenUpdateDialog,
 }: MunicipalReportCardProps) {
   return (
-    <Card
-      className={cn(
-        "overflow-hidden rounded-3xl border-border/80 transition-all hover:-translate-y-0.5 hover:shadow-md",
-        active && "border-primary shadow-md ring-2 ring-primary/15"
-      )}
-    >
+    <Card className="overflow-hidden rounded-lg border-border/80 transition-all hover:border-primary/30 hover:shadow-sm">
       <CardContent className="p-0">
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={onSelect}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              onSelect();
-            }
-          }}
-          className="w-full text-left focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-        >
-          <div className="grid gap-0 lg:grid-cols-[180px_1fr]">
+        <div className="w-full text-left">
+          <div className="grid gap-0 lg:grid-cols-[112px_1fr_auto]">
             <div className="bg-muted/50">
               {report.imageUrl ? (
                 <img
                   src={report.imageUrl}
                   alt={report.title}
-                  className="h-full min-h-[180px] w-full object-cover"
+                  className="h-full min-h-[112px] w-full object-cover"
                 />
               ) : (
-                <div className="flex h-full min-h-[180px] items-center justify-center bg-muted/60 px-4 text-center text-sm text-muted-foreground">
-                  Nu există imagine inițială pentru acest raport.
+                <div className="flex h-full min-h-[112px] items-center justify-center bg-muted/60 px-3 text-center text-xs text-muted-foreground">
+                  Fără imagine inițială
                 </div>
               )}
             </div>
 
-            <div className="flex min-h-[180px] flex-col justify-between p-5">
-              <div className="space-y-3">
+            <div className="min-w-0 p-4">
+              <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="rounded-full">
+                  <Badge variant="outline" className="rounded-md px-2 py-0 text-[11px]">
                     {CATEGORY_LABELS[report.category]}
                   </Badge>
                   <StatusBadge status={report.status} />
                   {report.afterImageUrl && (
-                    <Badge variant="secondary" className="rounded-full">
-                      After disponibil
+                    <Badge variant="secondary" className="rounded-md px-2 py-0 text-[11px]">
+                      Imagine finală
                     </Badge>
                   )}
                 </div>
 
-                <div className="space-y-1.5">
-                  <h3 className="font-heading text-lg font-semibold text-foreground">
+                <div className="space-y-1">
+                  <h3 className="line-clamp-1 font-heading text-base font-semibold text-foreground">
                     {report.title}
                   </h3>
-                  <p className="line-clamp-2 text-sm text-muted-foreground">
+                  <p className="line-clamp-1 text-sm text-muted-foreground">
                     {report.description}
                   </p>
                 </div>
 
-                <div className="grid gap-2 text-sm text-muted-foreground">
+                <div className="grid gap-1.5 text-xs text-muted-foreground">
                   <div className="flex items-start gap-2">
-                    <MapPinned className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                    <span>{report.address || "Adresa nu este disponibilă."}</span>
+                    <MapPinned className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                    <span className="line-clamp-1">{report.address || "Adresa nu este disponibilă."}</span>
                   </div>
 
                   <div className="flex flex-wrap gap-4">
                     <span className="flex items-center gap-2">
-                      <CalendarDays className="h-4 w-4" />
+                      <CalendarDays className="h-3.5 w-3.5" />
                       {new Date(report.createdAt).toLocaleDateString("ro-RO")}
                     </span>
 
                     <span className="flex items-center gap-2">
-                      <UserRound className="h-4 w-4" />
+                      <UserRound className="h-3.5 w-3.5" />
                       {report.username}
                     </span>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="gap-2"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onOpenDetails();
-                  }}
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Detalii
-                </Button>
+            <div className="flex flex-row gap-2 border-t px-4 pb-4 lg:min-w-[154px] lg:flex-col lg:justify-center lg:border-l lg:border-t-0 lg:p-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1 gap-2 lg:flex-none"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenDetails();
+                }}
+              >
+                <ExternalLink className="h-4 w-4" />
+                Detalii
+              </Button>
 
-                <Button
-                  type="button"
-                  className="gap-2"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onOpenStatusDialog();
-                  }}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Update status
-                </Button>
-              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="flex-1 gap-2 lg:flex-none"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenUpdateDialog();
+                }}
+              >
+                <RefreshCw className="h-4 w-4" />
+                Actualizează
+              </Button>
             </div>
           </div>
         </div>

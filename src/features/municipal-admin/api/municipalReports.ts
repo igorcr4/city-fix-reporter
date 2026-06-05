@@ -1,7 +1,12 @@
-import { normalizeReportResponse, updateReport } from "@/core/api/api";
+import { getAllReports, normalizeReportResponse } from "@/core/api/api";
 import { apiFetch } from "@/core/api/http";
 import { API_BASE_URL as BASE_URL } from "@/core/config/api";
 import type { Report, ReportStatus } from "@/shared/types";
+
+export interface MunicipalReportUpdateRequest {
+  status: ReportStatus;
+  file?: File;
+}
 
 function extractListPayload<T>(raw: unknown): T[] {
   if (Array.isArray(raw)) return raw as T[];
@@ -16,6 +21,19 @@ function extractListPayload<T>(raw: unknown): T[] {
   }
 
   return [];
+}
+
+function isReportPayload(raw: unknown): boolean {
+  return !!raw && typeof raw === "object" && "id" in raw;
+}
+
+async function isApplicationReportsListEmpty(): Promise<boolean> {
+  try {
+    const reports = await getAllReports();
+    return reports.length === 0;
+  } catch {
+    return false;
+  }
 }
 
 async function parseErrorMessage(res: Response, fallback: string): Promise<string> {
@@ -47,12 +65,17 @@ export async function getMunicipalAdminReports(): Promise<Report[]> {
   const res = await apiFetch(`${BASE_URL}/reports/municipal-admin`);
 
   if (!res.ok) {
-    throw new Error(
-      await parseErrorMessage(
-        res,
-        "Nu s-au putut încărca rapoartele municipalității."
-      )
+    const errorMessage = await parseErrorMessage(
+      res,
+      "Nu s-au putut încărca rapoartele municipalității."
     );
+
+    if (res.status >= 500 && res.status < 600) {
+      const hasNoReports = await isApplicationReportsListEmpty();
+      if (hasNoReports) return [];
+    }
+
+    throw new Error(errorMessage);
   }
 
   if (res.status === 204) {
@@ -65,22 +88,41 @@ export async function getMunicipalAdminReports(): Promise<Report[]> {
   }
 
   const list = extractListPayload<unknown>(raw);
-  return (list.length > 0 ? list : [raw]).map((item) =>
+  const payload = list.length > 0 ? list : isReportPayload(raw) ? [raw] : [];
+
+  return payload.map((item) =>
     normalizeReportResponse(item)
   );
 }
 
-export async function updateMunicipalReportStatus(
+export async function updateMunicipalReport(
   report: Report,
-  status: ReportStatus
+  data: MunicipalReportUpdateRequest
 ): Promise<Report> {
-  return updateReport(report.id, {
-    title: report.title,
-    description: report.description,
-    category: report.category,
-    status,
-    latitude: report.latitude,
-    longitude: report.longitude,
-    address: report.address,
+  const formData = new FormData();
+
+  formData.append(
+    "data",
+    new Blob([JSON.stringify({ status: data.status })], {
+      type: "application/json",
+    })
+  );
+
+  if (data.file) {
+    formData.append("file", data.file);
+  }
+
+  const res = await apiFetch(`${BASE_URL}/reports/update/${report.id}`, {
+    method: "PATCH",
+    body: formData,
   });
+
+  if (!res.ok) {
+    throw new Error(
+      await parseErrorMessage(res, "Raportul nu a putut fi actualizat.")
+    );
+  }
+
+  const raw = await res.json();
+  return normalizeReportResponse(raw);
 }

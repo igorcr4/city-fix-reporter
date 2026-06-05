@@ -36,7 +36,6 @@ export default function MapPage() {
         console.error("LOAD REPORTS ERROR:", error);
 
         if (!isMounted) return;
-        // păstrăm harta vizibilă chiar dacă request-ul eșuează
         setReports([]);
       } finally {
         if (isMounted) {
@@ -96,7 +95,6 @@ export default function MapPage() {
         onCategoryChange={setSelectedCategory}
       />
 
-      {/* Harta este mereu prezentă; dacă nu sunt rapoarte, doar nu apar marker-ele */}
       <ReportMap
         reports={filteredReports}
         className="h-full w-full"

@@ -20,23 +20,33 @@ export interface NormalizedAdministrativeLocation {
 
 type AdministrativeField = "country" | "state" | "city";
 
-// Exact-value aliases only. The main path is canonical matching against
-// geography API options; these keep known translated labels from splitting data.
 const EDGE_CASE_ALIASES: Partial<Record<AdministrativeField, Record<string, string>>> = {
   country: {
-    romania: "Romania",
-    roumania: "Romania",
-    rumania: "Romania",
+    romania: "România",
+    roumania: "România",
+    rumania: "România",
   },
   state: {
-    bucuresti: "Bucharest",
-    "municipiul bucuresti": "Bucharest",
+    bucharest: "București",
+    bucuresti: "București",
+    "bucharest municipality": "București",
+    "municipiul bucuresti": "București",
   },
   city: {
-    bucuresti: "Bucharest",
-    "municipiul bucuresti": "Bucharest",
+    bucharest: "București",
+    bucuresti: "București",
+    "bucharest municipality": "București",
+    "municipiul bucuresti": "București",
   },
 };
+
+const ADMINISTRATIVE_TEXT_REPLACEMENTS = [
+  { pattern: /\bBucharest Municipality\b/gi, replacement: "București" },
+  { pattern: /\bMunicipiul Bucuresti\b/gi, replacement: "București" },
+  { pattern: /\bBucharest\b/gi, replacement: "București" },
+  { pattern: /\bBucuresti\b/gi, replacement: "București" },
+  { pattern: /\bRomania\b/gi, replacement: "România" },
+];
 
 export function compactAdministrativeText(value: string | null | undefined): string {
   return (value ?? "").trim().replace(/\s+/g, " ");
@@ -70,6 +80,28 @@ function getAliasCanonicalValue(
   return alias ?? null;
 }
 
+export function localizeAdministrativeValue(
+  field: AdministrativeField,
+  value: string | null | undefined
+): string {
+  const compacted = compactAdministrativeText(value);
+  if (!compacted) return "";
+
+  return getAliasCanonicalValue(field, compacted) ?? compacted;
+}
+
+export function localizeAdministrativeText(
+  value: string | null | undefined
+): string {
+  const compacted = compactAdministrativeText(value);
+  if (!compacted) return "";
+
+  return ADMINISTRATIVE_TEXT_REPLACEMENTS.reduce(
+    (text, replacement) => text.replace(replacement.pattern, replacement.replacement),
+    compacted
+  );
+}
+
 function canonicalizeFromOptions(
   field: AdministrativeField,
   value: string,
@@ -78,7 +110,8 @@ function canonicalizeFromOptions(
   const compacted = compactAdministrativeText(value);
   if (!compacted) return "";
 
-  const valueKey = getAdministrativeMatchKey(compacted);
+  const localizedValue = localizeAdministrativeValue(field, compacted);
+  const valueKey = getAdministrativeMatchKey(localizedValue);
   const aliasCanonicalValue = getAliasCanonicalValue(field, compacted);
   const aliasKey = aliasCanonicalValue
     ? getAdministrativeMatchKey(aliasCanonicalValue)
@@ -89,10 +122,10 @@ function canonicalizeFromOptions(
     return optionKey === valueKey || (!!aliasKey && optionKey === aliasKey);
   });
 
-  if (matchedOption) return compactAdministrativeText(matchedOption);
+  if (matchedOption) return localizeAdministrativeValue(field, matchedOption);
   if (aliasCanonicalValue) return aliasCanonicalValue;
 
-  return toStableDisplayValue(compacted);
+  return toStableDisplayValue(localizedValue);
 }
 
 export function normalizeAdministrativeLocation(
