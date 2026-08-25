@@ -1,7 +1,7 @@
 import { useAuth } from "@/core/auth/AuthContext";
 import { isAdminUser, isMunicipalAdminUser } from "@/core/auth/roles";
 import { useNavigate } from "react-router-dom";
-import { User, FileText, LogOut, ShieldCheck, Building2 } from "lucide-react";
+import { User, FileText, LogOut, ShieldCheck, Building2, CreditCard } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
   DropdownMenu,
@@ -55,7 +55,16 @@ export function ProfileMenu() {
             className="gap-2"
           >
             <Building2 className="h-4 w-4" />
-            Municipal panel
+            Panou Administrativ
+          </DropdownMenuItem>
+        )}
+        {isMunicipalAdminUser(user) && (
+          <DropdownMenuItem
+            onClick={() => navigate("/subscription/manage")}
+            className="gap-2"
+          >
+            <CreditCard className="h-4 w-4" />
+            Abonament
           </DropdownMenuItem>
         )}
         {isAdminUser(user) && (

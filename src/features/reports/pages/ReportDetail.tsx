@@ -6,6 +6,8 @@ import {
   getReportById,
   reverseGeocodeCoordinates,
 } from "@/core/api/api";
+import { ReportCommentsSection } from "@/features/comments/components/ReportCommentsSection";
+import { ConfirmationButton } from "@/features/confirmations/components/ConfirmationButton";
 import type { Report } from "@/shared/types";
 import { CATEGORY_LABELS } from "@/shared/types";
 import { StatusBadge } from "@/features/reports/components/StatusBadge";
@@ -123,6 +125,8 @@ export default function ReportDetailPage() {
 
   const isOwner = user?.id === report.userId;
   const displayAddress = report.address?.trim();
+  const showComparison =
+    report.status === "RESOLVED" && !!report.imageUrl && !!report.afterImageUrl;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -142,14 +146,53 @@ export default function ReportDetailPage() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col gap-4"
         >
-          {report.imageUrl && (
-            <div className="overflow-hidden rounded-lg bg-muted">
-              <img
-                src={report.imageUrl}
-                alt={report.title}
-                className="max-h-[420px] w-full object-contain"
-              />
+          {showComparison ? (
+            <div className="rounded-xl border border-border bg-muted/40 p-4">
+              <p className="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                Comparație înainte / după
+              </p>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <figure className="space-y-2">
+                  <div className="overflow-hidden rounded-lg bg-muted">
+                    <img
+                      src={report.imageUrl}
+                      alt={`Înainte — ${report.title}`}
+                      className="max-h-[420px] w-full object-contain"
+                    />
+                  </div>
+                  <figcaption className="text-center">
+                    <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                      Înainte
+                    </span>
+                  </figcaption>
+                </figure>
+
+                <figure className="space-y-2">
+                  <div className="overflow-hidden rounded-lg bg-muted">
+                    <img
+                      src={report.afterImageUrl}
+                      alt={`După — ${report.title}`}
+                      className="max-h-[420px] w-full object-contain"
+                    />
+                  </div>
+                  <figcaption className="text-center">
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                      După
+                    </span>
+                  </figcaption>
+                </figure>
+              </div>
             </div>
+          ) : (
+            report.imageUrl && (
+              <div className="overflow-hidden rounded-lg bg-muted">
+                <img
+                  src={report.imageUrl}
+                  alt={report.title}
+                  className="max-h-[420px] w-full object-contain"
+                />
+              </div>
+            )
           )}
 
           <div className="flex flex-wrap items-center gap-2">
@@ -205,6 +248,27 @@ export default function ReportDetailPage() {
                 {new Date(report.updatedAt).toLocaleDateString("ro-RO")}
               </span>
             )}
+          </div>
+
+          <div>
+            <ConfirmationButton
+              report={report}
+              onConfirmationChange={({ confirmed, count }) =>
+                setReport((current) =>
+                  current && current.id === report.id
+                    ? {
+                        ...current,
+                        confirmedByCurrentUser: confirmed,
+                        confirmationCount: count,
+                      }
+                    : current
+                )
+              }
+            />
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-4">
+            <ReportCommentsSection reportId={report.id} />
           </div>
 
           {isOwner && (

@@ -18,3 +18,13 @@ export interface PromoteMunicipalAdminPayload {
   state: string;
   city: string;
 }
+
+export interface MunicipalityRequest {
+  id: number;
+  status: string;
+  createdAt: string;
+  institutionName: string;
+  employeePosition: string;
+  justification: string;
+  username: string;
+}

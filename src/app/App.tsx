@@ -16,6 +16,10 @@ import CreateReportPage from "@/features/reports/pages/CreateReport";
 import EditReportPage from "@/features/reports/pages/EditReport";
 import NotFound from "@/pages/NotFound";
 import MyReportsPage from "@/features/reports/pages/MyReports";
+import SubscriptionPage from "@/features/subscription/pages/SubscriptionPage";
+import SubscriptionManagementPage from "@/features/subscription/pages/SubscriptionManagementPage";
+import SubscriptionSuccessPage from "@/features/subscription/pages/SubscriptionSuccessPage";
+import SubscriptionCancelPage from "@/features/subscription/pages/SubscriptionCancelPage";
 
 const queryClient = new QueryClient();
 
@@ -127,6 +131,42 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <EditReportPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/subscription"
+        element={
+          <ProtectedRoute>
+            <SubscriptionPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/subscription/manage"
+        element={
+          <ProtectedRoute>
+            <SubscriptionManagementPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/subscription/success"
+        element={
+          <ProtectedRoute>
+            <SubscriptionSuccessPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/subscription/cancel"
+        element={
+          <ProtectedRoute>
+            <SubscriptionCancelPage />
           </ProtectedRoute>
         }
       />

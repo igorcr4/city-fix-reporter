@@ -1,151 +1,76 @@
-export interface AdministrativeLocationInput {
-  country?: string | null;
-  state?: string | null;
-  city?: string | null;
-}
-
-export interface AdministrativeLocationOptions {
-  countries?: string[];
-  states?: string[];
-  cities?: string[];
-}
-
-export interface NormalizedAdministrativeLocation {
-  country: string;
-  state: string;
-  city: string;
-  isComplete: boolean;
-  wasChanged: boolean;
-}
-
-type AdministrativeField = "country" | "state" | "city";
-
-const EDGE_CASE_ALIASES: Partial<Record<AdministrativeField, Record<string, string>>> = {
-  country: {
-    romania: "România",
-    roumania: "România",
-    rumania: "România",
-  },
-  state: {
-    bucharest: "București",
-    bucuresti: "București",
-    "bucharest municipality": "București",
-    "municipiul bucuresti": "București",
-  },
-  city: {
-    bucharest: "București",
-    bucuresti: "București",
-    "bucharest municipality": "București",
-    "municipiul bucuresti": "București",
-  },
-};
-
-const ADMINISTRATIVE_TEXT_REPLACEMENTS = [
-  { pattern: /\bBucharest Municipality\b/gi, replacement: "București" },
-  { pattern: /\bMunicipiul Bucuresti\b/gi, replacement: "București" },
-  { pattern: /\bBucharest\b/gi, replacement: "București" },
-  { pattern: /\bBucuresti\b/gi, replacement: "București" },
-  { pattern: /\bRomania\b/gi, replacement: "România" },
-];
+/**
+ * Helpere generice pentru denumiri administrative.
+ *
+ * Nu conțin reguli specifice vreunei țări: identitatea unei localități vine din
+ * codurile CountryStateCity (countryIso2 + stateIso2 + cscCityId), iar
+ * denumirile sunt folosite exact cum vin din CSC. O țară nouă nu cere cod nou.
+ */
 
 export function compactAdministrativeText(value: string | null | undefined): string {
   return (value ?? "").trim().replace(/\s+/g, " ");
 }
 
+/**
+ * Cheie de comparare tolerantă la diacritice, punctuație și majuscule, folosită
+ * doar ca fallback când un prefill trebuie potrivit cu o opțiune CSC.
+ * Funcționează pentru orice alfabet (\p{L}), nu doar latin.
+ */
 export function getAdministrativeMatchKey(
   value: string | null | undefined
 ): string {
   return compactAdministrativeText(value)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[șş]/gi, "s")
-    .replace(/[țţ]/gi, "t")
     .toLocaleLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim()
     .replace(/\s+/g, " ");
 }
 
-function toStableDisplayValue(value: string): string {
-  return compactAdministrativeText(value)
-    .toLocaleLowerCase()
-    .replace(/(^|[\s-])\p{L}/gu, (match) => match.toLocaleUpperCase());
-}
+/**
+ * Termeni administrativi care \u00eenso\u021besc numele unei localit\u0103\u021bi \u00een unele surse
+ * ("Chi\u0219in\u0103u Municipality" vs "Chi\u0219in\u0103u"). Lista e un vocabular de tipuri de
+ * unit\u0103\u021bi administrative, aplicat uniform oric\u0103rei \u021b\u0103ri \u2014 nu un tabel de alias
+ * pentru o \u021bar\u0103 anume. Se folose\u0219te doar la compara\u021bie, niciodat\u0103 la afi\u0219are.
+ */
+const ADMINISTRATIVE_UNIT_TERMS = [
+  "municipality",
+  "municipiul",
+  "municipiu",
+  "city",
+  "orasul",
+  "oras",
+  "town",
+  "village",
+  "satul",
+  "comuna",
+  "commune",
+  "county",
+  "judetul",
+  "judet",
+  "raionul",
+  "raion",
+  "district",
+  "province",
+  "prefecture",
+  "region",
+  "regiunea",
+];
 
-function getAliasCanonicalValue(
-  field: AdministrativeField,
-  value: string
-): string | null {
-  const alias = EDGE_CASE_ALIASES[field]?.[getAdministrativeMatchKey(value)];
-  return alias ?? null;
-}
+/**
+ * Cheie de compara\u021bie pentru localit\u0103\u021bi: cheia normalizat\u0103, din care se scot
+ * termenii administrativi de la \u00eenceput \u0219i de la sf\u00e2r\u0219it. Dac\u0103 nu mai r\u0103m\u00e2ne
+ * nimic (ex. numele chiar e "Sector 3"), se p\u0103streaz\u0103 cheia \u00eentreag\u0103.
+ */
+export function getLocalityMatchKey(value: string | null | undefined): string {
+  const words = getAdministrativeMatchKey(value).split(" ").filter(Boolean);
 
-export function localizeAdministrativeValue(
-  field: AdministrativeField,
-  value: string | null | undefined
-): string {
-  const compacted = compactAdministrativeText(value);
-  if (!compacted) return "";
+  let start = 0;
+  let end = words.length;
 
-  return getAliasCanonicalValue(field, compacted) ?? compacted;
-}
+  while (start < end && ADMINISTRATIVE_UNIT_TERMS.includes(words[start])) start++;
+  while (end > start && ADMINISTRATIVE_UNIT_TERMS.includes(words[end - 1])) end--;
 
-export function localizeAdministrativeText(
-  value: string | null | undefined
-): string {
-  const compacted = compactAdministrativeText(value);
-  if (!compacted) return "";
-
-  return ADMINISTRATIVE_TEXT_REPLACEMENTS.reduce(
-    (text, replacement) => text.replace(replacement.pattern, replacement.replacement),
-    compacted
-  );
-}
-
-function canonicalizeFromOptions(
-  field: AdministrativeField,
-  value: string,
-  options: string[] | undefined
-): string {
-  const compacted = compactAdministrativeText(value);
-  if (!compacted) return "";
-
-  const localizedValue = localizeAdministrativeValue(field, compacted);
-  const valueKey = getAdministrativeMatchKey(localizedValue);
-  const aliasCanonicalValue = getAliasCanonicalValue(field, compacted);
-  const aliasKey = aliasCanonicalValue
-    ? getAdministrativeMatchKey(aliasCanonicalValue)
-    : null;
-
-  const matchedOption = options?.find((option) => {
-    const optionKey = getAdministrativeMatchKey(option);
-    return optionKey === valueKey || (!!aliasKey && optionKey === aliasKey);
-  });
-
-  if (matchedOption) return localizeAdministrativeValue(field, matchedOption);
-  if (aliasCanonicalValue) return aliasCanonicalValue;
-
-  return toStableDisplayValue(localizedValue);
-}
-
-export function normalizeAdministrativeLocation(
-  input: AdministrativeLocationInput,
-  options: AdministrativeLocationOptions = {}
-): NormalizedAdministrativeLocation {
-  const rawCountry = compactAdministrativeText(input.country);
-  const rawState = compactAdministrativeText(input.state);
-  const rawCity = compactAdministrativeText(input.city);
-
-  const country = canonicalizeFromOptions("country", rawCountry, options.countries);
-  const state = canonicalizeFromOptions("state", rawState, options.states);
-  const city = canonicalizeFromOptions("city", rawCity, options.cities);
-
-  return {
-    country,
-    state,
-    city,
-    isComplete: Boolean(country && state && city),
-    wasChanged:
-      country !== rawCountry || state !== rawState || city !== rawCity,
-  };
+  const stripped = words.slice(start, end).join(" ");
+  return stripped || words.join(" ");
 }

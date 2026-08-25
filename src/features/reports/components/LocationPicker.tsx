@@ -12,22 +12,31 @@ interface LocationPickerProps {
   latitude: number | null;
   longitude: number | null;
   onChange: (lat: number, lng: number) => void;
+  /**
+   * Centru de rezervă pentru hartă când nu există încă o locație aleasă
+   * (ex. orașul ultimului raport, dacă geolocația eșuează). Doar centrează
+   * harta, nu plasează un marker. Implicit: București.
+   */
+  fallbackCenter?: { lat: number; lng: number } | null;
 }
 
 export function LocationPicker({
   latitude,
   longitude,
   onChange,
+  fallbackCenter,
 }: LocationPickerProps) {
   const [geoLoading, setGeoLoading] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
+
+  const noLocationCenter = fallbackCenter ?? DEFAULT_MAP_CENTER;
 
   const initialCenter = useMemo(
     () =>
       latitude != null && longitude != null
         ? { lat: latitude, lng: longitude }
-        : DEFAULT_MAP_CENTER,
-    [latitude, longitude]
+        : noLocationCenter,
+    [latitude, longitude, noLocationCenter]
   );
 
   const [tempLocation, setTempLocation] = useState<{
@@ -48,7 +57,7 @@ export function LocationPicker({
     const center =
       latitude != null && longitude != null
         ? { lat: latitude, lng: longitude }
-        : DEFAULT_MAP_CENTER;
+        : noLocationCenter;
 
     setTempLocation(
       latitude != null && longitude != null
@@ -64,7 +73,7 @@ export function LocationPicker({
       pitch: 0,
       padding: { top: 0, right: 0, bottom: 0, left: 0 },
     });
-  }, [latitude, longitude]);
+  }, [latitude, longitude, noLocationCenter]);
 
   const handleUseMyLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -148,10 +157,11 @@ export function LocationPicker({
     setIsMapOpen(false);
   }, [onChange, tempLocation]);
 
-  const center =
-    latitude != null && longitude != null
-      ? { lat: latitude, lng: longitude }
-      : DEFAULT_MAP_CENTER;
+  const hasLocation = latitude != null && longitude != null;
+  const center = hasLocation
+    ? { lat: latitude, lng: longitude }
+    : noLocationCenter;
+  const centerZoom = hasLocation ? 16 : DEFAULT_MAP_ZOOM;
 
   return (
     <>
@@ -196,15 +206,11 @@ export function LocationPicker({
             initialViewState={{
               latitude: center.lat,
               longitude: center.lng,
-              zoom: latitude != null && longitude != null ? 16 : DEFAULT_MAP_ZOOM,
+              zoom: centerZoom,
             }}
-            {...(latitude != null && longitude != null
-              ? {
-                  latitude: center.lat,
-                  longitude: center.lng,
-                  zoom: 16,
-                }
-              : {})}
+            latitude={center.lat}
+            longitude={center.lng}
+            zoom={centerZoom}
             style={{ width: "100%", height: "100%" }}
             mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
             attributionControl={false}

@@ -12,6 +12,7 @@ import {
 import { AdminUserDetailsCard } from "@/features/admin/components/AdminUserDetailsCard";
 import { AdminUserSearch } from "@/features/admin/components/AdminUserSearch";
 import { PromoteMunicipalAdminDialog } from "@/features/admin/components/PromoteMunicipalAdminDialog";
+import { SubscriptionRequestsSection } from "@/features/admin/components/SubscriptionRequestsSection";
 import type {
   AdminUser,
   PromoteMunicipalAdminPayload,
@@ -219,7 +220,7 @@ export default function AdminControlPanelPage() {
             <div className="rounded-2xl border border-border bg-background p-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <MapPinned className="h-4 w-4" />
-                Municipalitate
+                Oraș
               </div>
               <p className="mt-2 text-lg font-semibold text-foreground">
                 {foundUser?.municipality?.name || "-"}
@@ -294,6 +295,8 @@ export default function AdminControlPanelPage() {
             </div>
           )}
         </section>
+
+        <SubscriptionRequestsSection />
       </main>
 
       <PromoteMunicipalAdminDialog
@@ -313,7 +316,7 @@ export default function AdminControlPanelPage() {
             <AlertDialogTitle>Confirmă retrogradarea</AlertDialogTitle>
             <AlertDialogDescription>
               {demoteTarget
-                ? `Vrei să îl retrogradezi pe ${demoteTarget.username} la rolul de user simplu? Municipalitatea asociată va fi eliminată din UI după succes.`
+                ? `Vrei să îl retrogradezi pe ${demoteTarget.username} la rolul de user simplu? Orașul asociat va fi eliminat din UI după succes.`
                 : "Confirmă retrogradarea userului selectat."}
             </AlertDialogDescription>
           </AlertDialogHeader>

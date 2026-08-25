@@ -5,6 +5,14 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import { Header } from "@/shared/components/layout/Header";
 import { getMyReports } from "@/core/api/api";
+import { ReportCommentsSection } from "@/features/comments/components/ReportCommentsSection";
+import { getReportMapUrl } from "@/features/reports/helpers/reportMapNavigation";
+import {
+  filterAndSortMyReports,
+  splitMyReportsByStatus,
+  type MyReportsSortKey,
+  type MyReportsTab,
+} from "@/features/reports/helpers/myReportsView";
 import type { Report, ReportCategory } from "@/shared/types";
 import {
   CATEGORY_COLORS,
@@ -17,11 +25,10 @@ import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { Badge } from "@/shared/components/ui/badge";
-import { Expand, Loader2, MapPin, Search, SlidersHorizontal } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
+import { CheckCircle2, Expand, Loader2, MapPin, Search, SlidersHorizontal } from "lucide-react";
 import { toast } from "@/shared/hooks/use-toast";
 import { reverseGeocodeCoordinates } from "@/core/api/api";
-
-type SortKey = "newest" | "oldest";
 
 const categories: Array<ReportCategory | "ALL"> = ["ALL", "ROAD", "LIGHTING", "WASTE", "VANDALISM", "OTHER"];
 
@@ -87,8 +94,9 @@ export default function MyReportsPage() {
 
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<ReportCategory | "ALL">("ALL");
-  const [sort, setSort] = useState<SortKey>("newest");
+  const [sort, setSort] = useState<MyReportsSortKey>("newest");
   const [showFilters, setShowFilters] = useState(true);
+  const [selectedTab, setSelectedTab] = useState<MyReportsTab>("active");
 
   const load = async () => {
     setLoading(true);
@@ -112,13 +120,7 @@ export default function MyReportsPage() {
   }, []);
 
   const openReportOnMap = (report: Report) => {
-    const searchParams = new URLSearchParams({
-      reportId: String(report.id),
-      lat: String(report.latitude),
-      lng: String(report.longitude),
-    });
-
-    navigate(`/reports?${searchParams.toString()}`);
+    navigate(getReportMapUrl(report));
   };
 
   useEffect(() => {
@@ -172,32 +174,21 @@ export default function MyReportsPage() {
     };
   }, [reports]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-
-    let list = reports.slice();
-
-    if (category !== "ALL") {
-      list = list.filter((r) => r.category === category);
-    }
-
-    if (q) {
-      list = list.filter((r) => {
-        const inTitle = (r.title ?? "").toLowerCase().includes(q);
-        const inDesc = (r.description ?? "").toLowerCase().includes(q);
-        const inAddr = (r.address ?? "").toLowerCase().includes(q);
-        return inTitle || inDesc || inAddr;
-      });
-    }
-
-    list.sort((a, b) => {
-      const da = new Date(a.createdAt).getTime();
-      const db = new Date(b.createdAt).getTime();
-      return sort === "newest" ? db - da : da - db;
-    });
-
-    return list;
-  }, [reports, query, category, sort]);
+  const groupedReports = useMemo(() => splitMyReportsByStatus(reports), [reports]);
+  const selectedReports = groupedReports[selectedTab];
+  const filtered = useMemo(
+    () =>
+      filterAndSortMyReports(selectedReports, {
+        category,
+        query,
+        sort,
+      }),
+    [category, query, selectedReports, sort]
+  );
+  const hasAnyReports = reports.length > 0;
+  const hasReportsInSelectedTab = selectedReports.length > 0;
+  const isResolvedTab = selectedTab === "resolved";
+  const selectedTabLabel = isResolvedTab ? "rezolvate" : "active";
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -258,7 +249,7 @@ export default function MyReportsPage() {
               </SelectContent>
             </Select>
 
-            <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+            <Select value={sort} onValueChange={(v) => setSort(v as MyReportsSortKey)}>
               <SelectTrigger>
                 <SelectValue placeholder="Sortare" />
               </SelectTrigger>
@@ -270,22 +261,74 @@ export default function MyReportsPage() {
           </div>
         )}
 
+        <Tabs
+          value={selectedTab}
+          onValueChange={(value) => setSelectedTab(value as MyReportsTab)}
+        >
+          <TabsList className="grid h-11 w-full grid-cols-2 sm:w-auto">
+            <TabsTrigger value="active" className="gap-2">
+              Active
+              <Badge variant="secondary" className="rounded-full px-2 py-0 text-[11px]">
+                {groupedReports.active.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="resolved" className="gap-2 data-[state=active]:text-emerald-700">
+              Rezolvate
+              <Badge
+                variant="secondary"
+                className="rounded-full bg-emerald-100 px-2 py-0 text-[11px] text-emerald-700"
+              >
+                {groupedReports.resolved.length}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         {loading ? (
           <div className="flex flex-1 items-center justify-center py-10">
             <Loader2 className="h-7 w-7 animate-spin text-primary" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border py-14 text-center">
-            <p className="text-base font-medium">Nu ai rapoarte încă.</p>
-            <p className="text-sm text-muted-foreground">
-              Creează primul raport și îl vei vedea aici.
+          <div
+            className={`flex flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed py-14 text-center ${
+              isResolvedTab
+                ? "border-emerald-200 bg-emerald-50/40"
+                : "border-border"
+            }`}
+          >
+            {isResolvedTab && (
+              <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+            )}
+            <p className="text-base font-medium">
+              {!hasAnyReports
+                ? "Nu ai rapoarte încă."
+                : !hasReportsInSelectedTab
+                  ? isResolvedTab
+                    ? "Nu ai încă rapoarte rezolvate."
+                    : "Nu ai rapoarte active."
+                  : `Nu există rapoarte ${selectedTabLabel} pentru filtrele curente.`}
             </p>
-            <Button className="mt-2" onClick={() => navigate("/reports/new")}>
-              + Creează raport
-            </Button>
+            <p className="text-sm text-muted-foreground">
+              {!hasAnyReports
+                ? "Creează primul raport și îl vei vedea aici."
+                : !hasReportsInSelectedTab
+                  ? isResolvedTab
+                    ? "Când un raport va fi marcat ca rezolvat, îl vei găsi în această secțiune."
+                    : "Rapoartele noi sau în lucru vor apărea aici."
+                  : "Ajustează căutarea, categoria sau sortarea ca să vezi rezultatele dorite."}
+            </p>
+            {!hasAnyReports && (
+              <Button className="mt-2" onClick={() => navigate("/reports/new")}>
+                + Creează raport
+              </Button>
+            )}
           </div>
         ) : (
-          <div className="flex flex-col gap-3 pb-6">
+          <div
+            className={`flex flex-col gap-3 rounded-lg pb-6 ${
+              isResolvedTab ? "border border-emerald-100 bg-emerald-50/20 p-3" : ""
+            }`}
+          >
             {filtered.map((r) => (
               <article
                 key={r.id}
@@ -299,42 +342,46 @@ export default function MyReportsPage() {
                 }}
                 className="group w-full cursor-pointer rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md"
               >
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-[260px_1fr]">
-                  <MiniMap report={r} onShowOnMap={openReportOnMap} />
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-[260px_1fr]">
+                    <MiniMap report={r} onShowOnMap={openReportOnMap} />
 
-                  <div className="flex flex-col gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        {CATEGORY_LABELS[r.category] ?? r.category}
-                      </Badge>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          {CATEGORY_LABELS[r.category] ?? r.category}
+                        </Badge>
 
-                      <Badge variant="secondary" className="text-xs">
-                        {STATUS_LABELS[r.status] ?? r.status}
-                      </Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {STATUS_LABELS[r.status] ?? r.status}
+                        </Badge>
 
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(r.createdAt).toLocaleDateString("ro-RO")}
-                      </span>
-
-                      {r.updatedAt && (
                         <span className="text-xs text-muted-foreground">
-                          • actualizat {new Date(r.updatedAt).toLocaleDateString("ro-RO")}
+                          {new Date(r.createdAt).toLocaleDateString("ro-RO")}
                         </span>
-                      )}
-                    </div>
 
-                    <h2 className="line-clamp-1 font-heading text-base font-semibold group-hover:text-primary">
-                      {r.title || "(Fără titlu)"}
-                    </h2>
+                        {r.updatedAt && (
+                          <span className="text-xs text-muted-foreground">
+                            • actualizat {new Date(r.updatedAt).toLocaleDateString("ro-RO")}
+                          </span>
+                        )}
+                      </div>
 
-                    <p className="line-clamp-2 text-sm text-muted-foreground">
-                      {r.description}
-                    </p>
+                      <h2 className="line-clamp-1 font-heading text-base font-semibold group-hover:text-primary">
+                        {r.title || "(Fără titlu)"}
+                      </h2>
 
-                    <div className="text-xs text-muted-foreground">
-                      📍 {r.address?.trim() || "Adresa nu este disponibilă încă."}
+                      <p className="line-clamp-2 text-sm text-muted-foreground">
+                        {r.description}
+                      </p>
+
+                      <div className="text-xs text-muted-foreground">
+                        📍 {r.address?.trim() || "Adresa nu este disponibilă încă."}
+                      </div>
                     </div>
                   </div>
+
+                  <ReportCommentsSection reportId={r.id} />
                 </div>
               </article>
             ))}

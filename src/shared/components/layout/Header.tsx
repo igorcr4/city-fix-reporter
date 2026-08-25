@@ -1,6 +1,6 @@
 import { useAuth } from "@/core/auth/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Plus } from "lucide-react";
+import { CreditCard, LogOut, Plus } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 
 interface HeaderProps {
@@ -32,6 +32,16 @@ export function Header({
 
         {user && (showCreateButton || showLogoutButton) && (
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/subscription")}
+              className="gap-1.5"
+            >
+              <CreditCard className="h-4 w-4" />
+              <span className="hidden sm:inline">Abonamente</span>
+            </Button>
+
             {showCreateButton && (
               <Button
                 size="sm"

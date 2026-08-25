@@ -24,3 +24,12 @@ dist-ssr
 *.sw?
 
 .agents
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Agent tooling
+.claude
+skills-lock.json

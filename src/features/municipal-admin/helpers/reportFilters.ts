@@ -24,6 +24,18 @@ export const MUNICIPAL_REPORT_STATUSES: MunicipalReportStatusFilter[] = [
   "RESOLVED",
 ];
 
+function startOfDayTime(date: Date): number {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  return start.getTime();
+}
+
+function endOfDayTime(date: Date): number {
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return end.getTime();
+}
+
 function normalizeText(value: string | null | undefined): string {
   return (value ?? "")
     .normalize("NFD")
@@ -38,6 +50,8 @@ export function filterAndSortMunicipalReports(
   filters: MunicipalReportFilters
 ): Report[] {
   const normalizedQuery = normalizeText(filters.search);
+  const fromTime = filters.dateFrom ? startOfDayTime(filters.dateFrom) : null;
+  const toTime = filters.dateTo ? endOfDayTime(filters.dateTo) : null;
 
   const baseFiltered = reports.filter((report) => {
     const matchesCategory =
@@ -48,6 +62,13 @@ export function filterAndSortMunicipalReports(
       report.status === filters.status;
 
     if (!matchesCategory || !matchesStatus) return false;
+
+    if (fromTime !== null || toTime !== null) {
+      const createdTime = new Date(report.createdAt).getTime();
+      if (Number.isNaN(createdTime)) return false;
+      if (fromTime !== null && createdTime < fromTime) return false;
+      if (toTime !== null && createdTime > toTime) return false;
+    }
 
     if (!normalizedQuery) return true;
 

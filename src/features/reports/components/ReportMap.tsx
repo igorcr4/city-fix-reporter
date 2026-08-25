@@ -8,11 +8,15 @@ import type {
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Report } from "@/shared/types";
 import {
-  CATEGORY_COLORS,
   CATEGORY_LABELS,
   DEFAULT_MAP_CENTER,
   DEFAULT_MAP_ZOOM,
 } from "@/shared/types";
+import {
+  getReportMapMarkerColor,
+  REPORT_MAP_CATEGORY_COLORS,
+  RESOLVED_REPORT_MARKER_COLOR,
+} from "@/features/reports/helpers/reportMapFilters";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -20,7 +24,6 @@ import {
   Crosshair,
   Loader2,
   Compass,
-  Activity,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { StatusBadge } from "@/features/reports/components/StatusBadge";
@@ -33,10 +36,18 @@ import {
   REPORT_CLUSTERS_LAYER_ID,
   REPORT_FOCUSED_LAYER_ID,
   REPORT_MARKER_ICON_IDS,
+  REPORT_RESOLVED_MARKER_ICON_ID,
   REPORT_UNCLUSTERED_LAYER_ID,
 } from "@/features/reports/components/ReportClusterLayer";
 import { ReportHeatmapLayer } from "@/features/reports/components/ReportHeatmapLayer";
 import { createReportMapPointData } from "@/features/reports/helpers/reportMapGeoJson";
+import {
+  canRequestMapGeolocation,
+  readStoredReportMapViewState,
+  recordMapGeolocationOutcome,
+  storeReportMapViewState,
+} from "@/features/reports/helpers/reportMapState";
+import { useAuth } from "@/core/auth/AuthContext";
 
 interface ReportMapProps {
   reports: Report[];
@@ -46,6 +57,8 @@ interface ReportMapProps {
     latitude: number;
     longitude: number;
   } | null;
+  /** Vizibilitatea stratului de densitate (heatmap) — controlat din afară. */
+  isHeatmapVisible?: boolean;
 }
 
 function createReportMarkerSvg(color: string): string {
@@ -75,16 +88,22 @@ function loadReportMarkerIcon(color: string): Promise<HTMLImageElement> {
 async function loadReportMarkerIcons(): Promise<
   Array<[string, HTMLImageElement]>
 > {
-  return Promise.all(
-    Object.entries(REPORT_MARKER_ICON_IDS).map(
-      async ([category, iconId]): Promise<[string, HTMLImageElement]> => [
-        iconId,
-        await loadReportMarkerIcon(
-          CATEGORY_COLORS[category as keyof typeof CATEGORY_COLORS]
-        ),
-      ]
-    )
+  const categoryIcons = Object.entries(REPORT_MARKER_ICON_IDS).map(
+    async ([category, iconId]): Promise<[string, HTMLImageElement]> => [
+      iconId,
+      await loadReportMarkerIcon(
+        REPORT_MAP_CATEGORY_COLORS[category as keyof typeof REPORT_MAP_CATEGORY_COLORS]
+      ),
+    ]
   );
+
+  return Promise.all([
+    ...categoryIcons,
+    [
+      REPORT_RESOLVED_MARKER_ICON_ID,
+      await loadReportMarkerIcon(RESOLVED_REPORT_MARKER_COLOR),
+    ],
+  ]);
 }
 
 export function ReportMap({
@@ -92,17 +111,41 @@ export function ReportMap({
   className,
   focusedReportId,
   focusedLocation,
+  isHeatmapVisible = false,
 }: ReportMapProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const mapRef = useRef<MapRef | null>(null);
 
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
-  const [isHeatmapVisible, setIsHeatmapVisible] = useState(false);
+  const initialMapViewState = useMemo(() => {
+    if (focusedLocation) {
+      return {
+        latitude: focusedLocation.latitude,
+        longitude: focusedLocation.longitude,
+        zoom: 16,
+        bearing: 0,
+        pitch: 0,
+      };
+    }
+
+    const storedViewState = readStoredReportMapViewState();
+    if (storedViewState) {
+      return storedViewState;
+    }
+
+    return {
+      latitude: DEFAULT_MAP_CENTER.lat,
+      longitude: DEFAULT_MAP_CENTER.lng,
+      zoom: DEFAULT_MAP_ZOOM,
+      bearing: 0,
+      pitch: 0,
+    };
+  }, [focusedLocation]);
 
   const reportPointData = useMemo(() => createReportMapPointData(reports), [reports]);
-  const hasReportPoints = reportPointData.features.length > 0;
   const reportsById = useMemo(
     () => new Map(reports.map((report) => [report.id, report])),
     [reports]
@@ -122,6 +165,43 @@ export function ReportMap({
     },
     []
   );
+
+  const autoCenteredRef = useRef(false);
+
+  // La intrarea pe hartă, centrăm automat pe locația curentă a utilizatorului.
+  // Harta se randează instant pe centrul stocat/implicit, apoi „zboară" la GPS.
+  // Dacă geolocația eșuează, rămâne pe centrul curent (fără mesaj de eroare).
+  // Excepție: dacă venim cu o locație țintă (deep-link), o respectăm pe aceea.
+  // Limităm cererile automate (vezi canRequestMapGeolocation): dacă userul
+  // refuză nu mai întrebăm, iar la erori mai încercăm o singură dată.
+  useEffect(() => {
+    if (autoCenteredRef.current) return;
+    autoCenteredRef.current = true;
+
+    const token = user?.token;
+    if (focusedLocation || !navigator.geolocation || !token) return;
+    if (!canRequestMapGeolocation(token)) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        recordMapGeolocationOutcome(token, "success");
+        const nextLocation = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        };
+        setUserLocation(nextLocation);
+        flyToLocation(nextLocation);
+      },
+      (err) => {
+        // code 1 = permisiune refuzată → nu mai întrebăm; altfel = eroare (retry o dată).
+        recordMapGeolocationOutcome(
+          token,
+          err.code === err.PERMISSION_DENIED ? "denied" : "error"
+        );
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
+    );
+  }, [focusedLocation, flyToLocation, user?.token]);
 
   const requestUserLocation = useCallback(
     (resetOrientation = false) => {
@@ -214,13 +294,36 @@ export function ReportMap({
     });
   }, []);
 
+  const storeCurrentMapViewState = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const center = map.getCenter();
+
+    storeReportMapViewState({
+      latitude: center.lat,
+      longitude: center.lng,
+      zoom: map.getZoom(),
+      bearing: map.getBearing(),
+      pitch: map.getPitch(),
+    });
+  }, []);
+
+  const openSelectedReportDetails = useCallback(() => {
+    if (!selectedReport) return;
+
+    storeCurrentMapViewState();
+    navigate(`/reports/${selectedReport.id}`);
+  }, [navigate, selectedReport, storeCurrentMapViewState]);
+
   const ensureReportMarkerIcon = useCallback(() => {
     const map = mapRef.current?.getMap();
     if (!map) return;
 
-    const missingIconIds = Object.values(REPORT_MARKER_ICON_IDS).filter(
-      (iconId) => !map.hasImage(iconId)
-    );
+    const missingIconIds = [
+      ...Object.values(REPORT_MARKER_ICON_IDS),
+      REPORT_RESOLVED_MARKER_ICON_ID,
+    ].filter((iconId) => !map.hasImage(iconId));
 
     if (missingIconIds.length === 0) return;
 
@@ -357,9 +460,11 @@ export function ReportMap({
       <MapView
         ref={mapRef}
         initialViewState={{
-          latitude: focusedLocation?.latitude ?? DEFAULT_MAP_CENTER.lat,
-          longitude: focusedLocation?.longitude ?? DEFAULT_MAP_CENTER.lng,
-          zoom: focusedLocation ? 16 : DEFAULT_MAP_ZOOM,
+          latitude: initialMapViewState.latitude,
+          longitude: initialMapViewState.longitude,
+          zoom: initialMapViewState.zoom,
+          bearing: initialMapViewState.bearing,
+          pitch: initialMapViewState.pitch,
         }}
         style={{ width: "100%", height: "100%" }}
         mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
@@ -370,6 +475,7 @@ export function ReportMap({
           isHeatmapVisible ? undefined : REPORT_CLUSTER_INTERACTIVE_LAYER_IDS
         }
         onClick={handleMapClick}
+        onMoveEnd={storeCurrentMapViewState}
         onMouseEnter={handleInteractiveLayerMouseEnter}
         onMouseLeave={handleInteractiveLayerMouseLeave}
       >
@@ -423,28 +529,6 @@ export function ReportMap({
           </Button>
         </div>
 
-        <Button
-          type="button"
-          variant={isHeatmapVisible ? "default" : "secondary"}
-          className="mobile-map-control-right mobile-map-control-top absolute z-10 h-11 touch-manipulation gap-2 rounded-xl px-3 shadow-md"
-          onClick={() => setIsHeatmapVisible((current) => !current)}
-          disabled={!hasReportPoints}
-          aria-pressed={isHeatmapVisible}
-          aria-label={
-            isHeatmapVisible
-              ? "Ascunde densitatea rapoartelor"
-              : "Arată densitatea rapoartelor"
-          }
-          title={
-            isHeatmapVisible
-              ? "Ascunde densitatea rapoartelor"
-              : "Arată densitatea rapoartelor"
-          }
-        >
-          <Activity className="h-4 w-4" />
-          <span className="hidden sm:inline">Densitate</span>
-        </Button>
-
         <ReportHeatmapLayer data={reportPointData} visible={isHeatmapVisible} />
 
         <ReportClusterLayer
@@ -487,8 +571,14 @@ export function ReportMap({
                   variant="outline"
                   className="text-xs"
                   style={{
-                    borderColor: CATEGORY_COLORS[selectedReport.category],
-                    color: CATEGORY_COLORS[selectedReport.category],
+                    borderColor: getReportMapMarkerColor(
+                      selectedReport.category,
+                      selectedReport.status
+                    ),
+                    color: getReportMapMarkerColor(
+                      selectedReport.category,
+                      selectedReport.status
+                    ),
                   }}
                 >
                   {CATEGORY_LABELS[selectedReport.category]}
@@ -505,7 +595,7 @@ export function ReportMap({
                 size="sm"
                 variant="outline"
                 className="mt-1 w-full gap-1.5 text-xs"
-                onClick={() => navigate(`/reports/${selectedReport.id}`)}
+                onClick={openSelectedReportDetails}
               >
                 <ExternalLink className="h-3 w-3" />
                 Vezi detalii

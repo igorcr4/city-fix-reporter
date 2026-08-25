@@ -10,10 +10,7 @@ import { API_BASE_URL as BASE_URL } from "@/core/config/api";
 import { apiFetch } from "@/core/api/http";
 import { isJwtExpired } from "@/core/auth/jwt";
 import { getUserRoles } from "@/core/auth/roles";
-import {
-  localizeAdministrativeText,
-  localizeAdministrativeValue,
-} from "@/core/location/administrativeLocation";
+import { compactAdministrativeText } from "@/core/location/administrativeLocation";
 
 interface RawUser {
   id?: number;
@@ -51,6 +48,9 @@ interface RawReport {
   municipality?: RawMunicipality | null;
   createdAt: string;
   updatedAt?: string | null;
+  resolvedAt?: string | null;
+  confirmationCount?: number | null;
+  confirmedByCurrentUser?: boolean | null;
 }
 
 interface ReverseGeocodeAddress {
@@ -79,6 +79,10 @@ interface ReverseGeocodeAddress {
   county?: string;
   district?: string;
   country?: string;
+  /** iso2 al țării, lowercase (ex: "ro", "fr"). Întors mereu de Nominatim. */
+  country_code?: string;
+  /** Chei "ISO3166-2-lvl<N>" cu valori de forma "RO-CJ" / "FR-ARA". */
+  [key: string]: string | undefined;
 }
 
 interface ReverseGeocodeResponse {
@@ -88,6 +92,10 @@ interface ReverseGeocodeResponse {
 
 export interface ReverseGeocodeLocationDetails {
   address: string | null;
+  /** Coduri ISO — se potrivesc direct cu iso2 din CSC, pentru orice țară. */
+  countryIso2: string | null;
+  stateIso2: string | null;
+  /** Denumiri brute, doar pentru afișare și potrivire de rezervă a orașului. */
   country: string | null;
   state: string | null;
   city: string | null;
@@ -165,6 +173,7 @@ export function normalizeReportResponse(rawValue: unknown): Report {
   const municipalityId = raw.municipality?.id ?? raw.municipalityId ?? null;
   const municipalityName =
     raw.municipality?.name ?? raw.municipalityName ?? null;
+  const confirmationCount = Number(raw.confirmationCount ?? 0);
 
   return {
     id: raw.id,
@@ -180,19 +189,59 @@ export function normalizeReportResponse(rawValue: unknown): Report {
     username: raw.username ?? raw.user?.username ?? "Necunoscut",
     latitude: raw.latitude,
     longitude: raw.longitude,
-    address: localizeAdministrativeText(raw.address) || undefined,
-    country: localizeAdministrativeValue("country", raw.country) || null,
-    state: localizeAdministrativeValue("state", raw.state) || null,
-    city: localizeAdministrativeValue("city", raw.city) || null,
+    address: compactAdministrativeText(raw.address) || undefined,
+    // Denumirile CSC se afișează ca atare, identic pentru orice țară.
+    country: raw.country ?? null,
+    state: raw.state ?? null,
+    city: raw.city ?? null,
     municipalityId:
       municipalityId !== null && municipalityId !== undefined
         ? Number(municipalityId)
         : null,
     municipalityName:
-      localizeAdministrativeValue("city", municipalityName) || null,
+      compactAdministrativeText(municipalityName) || null,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt ?? null,
+    resolvedAt: raw.resolvedAt ?? null,
+    confirmationCount: Number.isFinite(confirmationCount) ? confirmationCount : 0,
+    confirmedByCurrentUser: raw.confirmedByCurrentUser === true,
   };
+}
+
+function extractCountryIso2(address: ReverseGeocodeAddress): string | null {
+  const code = address.country_code?.trim().toUpperCase();
+  return code && code.length === 2 ? code : null;
+}
+
+/**
+ * Nivelurile ISO3166-2 întoarse de Nominatim, în ordinea în care le încercăm.
+ * lvl4 e subdiviziunea de rang 1 (județ / regiune / municipiu) și corespunde
+ * cel mai des cu "state" din CSC; lvl3 și lvl6 sunt alternative pentru țările
+ * cu altă ierarhie administrativă. Ordinea e explicită, nu dependentă de
+ * ordinea cheilor din răspuns.
+ */
+const ISO3166_2_LEVEL_KEYS = [
+  "ISO3166-2-lvl4",
+  "ISO3166-2-lvl3",
+  "ISO3166-2-lvl6",
+  "ISO3166-2-lvl5",
+  "ISO3166-2-lvl7",
+] as const;
+
+/**
+ * Valorile au forma "<ȚARĂ>-<SUBDIVIZIUNE>" ("MD-CU", "RO-CJ", "FR-ARA").
+ * Partea de după prima liniuță e exact iso2-ul de state din CSC.
+ */
+function extractStateIso2(address: ReverseGeocodeAddress): string | null {
+  const value = ISO3166_2_LEVEL_KEYS.map((key) => address[key]).find(
+    (candidate): candidate is string =>
+      typeof candidate === "string" && candidate.includes("-")
+  );
+
+  if (!value) return null;
+
+  const subdivision = value.slice(value.indexOf("-") + 1).trim().toUpperCase();
+  return subdivision || null;
 }
 
 function formatReverseGeocodeAddress(raw: ReverseGeocodeResponse): string {
@@ -304,6 +353,8 @@ export async function reverseGeocodeLocationDetails(
   url.searchParams.set("lon", String(longitude));
   url.searchParams.set("zoom", "18");
   url.searchParams.set("addressdetails", "1");
+  // Limba afectează doar denumirile afișate (adresa / strada). Codurile ISO pe
+  // care se face identificarea sunt independente de limbă.
   url.searchParams.set("accept-language", "ro");
 
   const res = await fetch(url.toString(), {
@@ -331,11 +382,15 @@ export async function reverseGeocodeLocationDetails(
   const stateSelection = pickFirstAddressValue(address, STATE_ADDRESS_CANDIDATES);
   const country = address.country ?? null;
 
+  // Reverse-geocode e doar sursă de prefill + adresă, nu de identitate.
+  // Formularul confirmă totul cu opțiunile CSC înainte de submit.
   return {
-    address: localizeAdministrativeText(formatted) || null,
-    country: localizeAdministrativeValue("country", country) || null,
-    state: localizeAdministrativeValue("state", stateSelection.value) || null,
-    city: localizeAdministrativeValue("city", city) || null,
+    address: compactAdministrativeText(formatted) || null,
+    countryIso2: extractCountryIso2(address),
+    stateIso2: extractStateIso2(address),
+    country: compactAdministrativeText(country) || null,
+    state: compactAdministrativeText(stateSelection.value) || null,
+    city: compactAdministrativeText(city) || null,
   };
 }
 
@@ -367,7 +422,7 @@ export async function login(data: LoginRequest): Promise<User> {
     roles: normalizedRoles,
     municipalityId: raw.municipalityId ?? null,
     municipalityName:
-      localizeAdministrativeValue("city", raw.municipalityName) || null,
+      compactAdministrativeText(raw.municipalityName) || null,
   } satisfies User;
 }
 
@@ -426,9 +481,12 @@ export async function createReport(data: CreateReportRequest): Promise<Report> {
     latitude: data.latitude,
     longitude: data.longitude,
     address: data.address ?? null,
-    country: data.country,
-    state: data.state,
-    city: data.city,
+    countryIso2: data.countryIso2,
+    stateIso2: data.stateIso2,
+    cscCityId: data.cscCityId,
+    countryName: data.countryName,
+    stateName: data.stateName,
+    cityName: data.cityName,
   };
 
   formData.append(

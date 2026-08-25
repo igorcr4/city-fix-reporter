@@ -10,6 +10,9 @@ export interface MunicipalReportFilters {
   status: MunicipalReportStatusFilter;
   criticalOnly: boolean;
   sort: MunicipalReportSort;
+  /** Interval de date pe createdAt (premium PERIOD_FILTER); `null` = fără limită. */
+  dateFrom: Date | null;
+  dateTo: Date | null;
 }
 
 export interface MunicipalDashboardSummary {

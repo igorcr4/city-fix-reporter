@@ -24,6 +24,9 @@ export interface Report {
   municipalityName?: string | null;
   createdAt: string;
   updatedAt: string | null;
+  resolvedAt: string | null;
+  confirmationCount: number;
+  confirmedByCurrentUser: boolean;
 }
 
 export interface User {
@@ -73,10 +76,16 @@ export interface CreateReportRequest {
   category: ReportCategory;
   latitude: number;
   longitude: number;
+  /** Adresa în limba locală, așa cum vine de la geocoder / utilizator. */
   address?: string;
-  country: string;
-  state: string;
-  city: string;
+  /** Identitate geografică canonică (CountryStateCity) — cheia primăriei. */
+  countryIso2: string;
+  stateIso2: string;
+  cscCityId: number;
+  /** Denumiri canonice EN din CSC, doar informativ pentru backend. */
+  countryName: string;
+  stateName: string;
+  cityName: string;
   file?: File;
   removeImage?: boolean;
 }

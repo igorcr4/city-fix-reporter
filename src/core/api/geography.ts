@@ -5,8 +5,7 @@ import type {
   GeographyCountry,
   GeographyState,
 } from "@/shared/types";
-import { localizeAdministrativeValue } from "@/core/location/administrativeLocation";
-
+import { compactAdministrativeText } from "@/core/location/administrativeLocation";
 const GEOGRAPHY_COUNTRIES_ENDPOINT = `${BASE_URL}/geography/countries`;
 const GEOGRAPHY_STATES_ENDPOINT = `${BASE_URL}/geography/states`;
 const GEOGRAPHY_CITIES_ENDPOINT = `${BASE_URL}/geography/cities`;
@@ -46,9 +45,10 @@ function normalizeCountry(raw: RawCountry): GeographyCountry | null {
 
   if (!iso2 || !name) return null;
 
+  // `name` rămâne numele canonic EN din CSC — traducerea RO se face la render.
   return {
     id: raw.id,
-    name: localizeAdministrativeValue("country", name),
+    name: compactAdministrativeText(name),
     iso2,
   };
 }
@@ -61,7 +61,7 @@ function normalizeState(raw: RawState): GeographyState | null {
 
   return {
     id: raw.id,
-    name: localizeAdministrativeValue("state", name),
+    name: compactAdministrativeText(name),
     iso2,
   };
 }
@@ -74,7 +74,7 @@ function normalizeCity(raw: RawCity): GeographyCity | null {
 
   return {
     id: Number(id),
-    name: localizeAdministrativeValue("city", name),
+    name: compactAdministrativeText(name),
     countryIso2: raw.countryIso2,
     stateIso2: raw.stateIso2,
   };

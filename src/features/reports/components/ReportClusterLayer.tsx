@@ -26,6 +26,7 @@ export const REPORT_MARKER_ICON_IDS: Record<ReportCategory, string> = {
   VANDALISM: "report-marker-vandalism",
   OTHER: "report-marker-other",
 };
+export const REPORT_RESOLVED_MARKER_ICON_ID = "report-marker-resolved";
 
 export const REPORT_CLUSTER_INTERACTIVE_LAYER_IDS = [
   REPORT_CLUSTERS_LAYER_ID,
@@ -90,19 +91,24 @@ const unclusteredReportLayer: SymbolLayer = {
   filter: unclusteredPointFilter,
   layout: {
     "icon-image": [
-      "match",
-      ["get", "category"],
-      "ROAD",
-      REPORT_MARKER_ICON_IDS.ROAD,
-      "LIGHTING",
-      REPORT_MARKER_ICON_IDS.LIGHTING,
-      "WASTE",
-      REPORT_MARKER_ICON_IDS.WASTE,
-      "VANDALISM",
-      REPORT_MARKER_ICON_IDS.VANDALISM,
-      "OTHER",
-      REPORT_MARKER_ICON_IDS.OTHER,
-      REPORT_MARKER_ICON_IDS.OTHER,
+      "case",
+      ["==", ["get", "status"], "RESOLVED"],
+      REPORT_RESOLVED_MARKER_ICON_ID,
+      [
+        "match",
+        ["get", "category"],
+        "ROAD",
+        REPORT_MARKER_ICON_IDS.ROAD,
+        "LIGHTING",
+        REPORT_MARKER_ICON_IDS.LIGHTING,
+        "WASTE",
+        REPORT_MARKER_ICON_IDS.WASTE,
+        "VANDALISM",
+        REPORT_MARKER_ICON_IDS.VANDALISM,
+        "OTHER",
+        REPORT_MARKER_ICON_IDS.OTHER,
+        REPORT_MARKER_ICON_IDS.OTHER,
+      ],
     ],
     "icon-size": 0.92,
     "icon-allow-overlap": true,

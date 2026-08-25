@@ -1,34 +1,24 @@
 import { useNavigate } from "react-router-dom";
 import { ProfileMenu } from "@/features/reports/components/ProfileMenu";
-import type { ReportCategory } from "@/shared/types";
-import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/shared/types";
+import { MapControlsDock } from "@/features/reports/components/MapControlsDock";
+import type { ReportMapFilter } from "@/features/reports/helpers/reportMapFilters";
 import { Button } from "@/shared/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/shared/components/ui/dropdown-menu";
-import { MapPin, SlidersHorizontal } from "lucide-react";
+import { CreditCard } from "lucide-react";
 
 interface MapHeaderProps {
-  selectedCategory: ReportCategory | "ALL";
-  onCategoryChange: (category: ReportCategory | "ALL") => void;
+  selectedFilter: ReportMapFilter;
+  onFilterChange: (filter: ReportMapFilter) => void;
+  isHeatmapVisible: boolean;
+  onHeatmapToggle: () => void;
+  heatmapDisabled?: boolean;
 }
 
-const categories: Array<ReportCategory | "ALL"> = [
-  "ALL",
-  "ROAD",
-  "LIGHTING",
-  "WASTE",
-  "VANDALISM",
-  "OTHER",
-];
-
 export function MapHeader({
-  selectedCategory,
-  onCategoryChange,
+  selectedFilter,
+  onFilterChange,
+  isHeatmapVisible,
+  onHeatmapToggle,
+  heatmapDisabled = false,
 }: MapHeaderProps) {
   const navigate = useNavigate();
 
@@ -43,66 +33,24 @@ export function MapHeader({
         </button>
 
         <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="secondary"
-                className="h-11 min-w-11 touch-manipulation rounded-full bg-card/90 px-3 shadow-md backdrop-blur-md"
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                {selectedCategory !== "ALL" && (
-                  <span
-                    className="flex h-5 w-5 items-center justify-center rounded-full border border-white/80 shadow-sm"
-                    style={{ backgroundColor: CATEGORY_COLORS[selectedCategory] }}
-                  >
-                    <MapPin className="h-3 w-3 text-white" />
-                  </span>
-                )}
-                <span className="hidden sm:inline">
-                  {selectedCategory === "ALL"
-                    ? "Filtru"
-                    : CATEGORY_LABELS[selectedCategory]}
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            aria-label="Abonamente"
+            onClick={() => navigate("/subscription")}
+            className="h-11 w-11 shrink-0 touch-manipulation rounded-lg bg-card/90 shadow-md backdrop-blur-md"
+          >
+            <CreditCard className="h-4 w-4" />
+          </Button>
 
-            <DropdownMenuContent
-              align="end"
-              collisionPadding={16}
-              sideOffset={8}
-              className="w-52 max-w-[calc(100vw-2rem)]"
-            >
-              <DropdownMenuRadioGroup
-                value={selectedCategory}
-                onValueChange={(value) =>
-                  onCategoryChange(value as ReportCategory | "ALL")
-                }
-              >
-                {categories.map((category) => (
-                  <DropdownMenuRadioItem key={category} value={category}>
-                    <span className="flex items-center gap-2">
-                      {category === "ALL" ? (
-                        <span className="h-2.5 w-2.5 rounded-full bg-foreground/70" />
-                      ) : (
-                        <span
-                          className="flex h-5 w-5 items-center justify-center rounded-full border border-white/80 shadow-sm"
-                          style={{ backgroundColor: CATEGORY_COLORS[category] }}
-                        >
-                          <MapPin className="h-3 w-3 text-white" />
-                        </span>
-                      )}
-                      <span>
-                        {category === "ALL"
-                          ? "Toate categoriile"
-                          : CATEGORY_LABELS[category]}
-                      </span>
-                    </span>
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <MapControlsDock
+            selectedFilter={selectedFilter}
+            onFilterChange={onFilterChange}
+            isHeatmapVisible={isHeatmapVisible}
+            onHeatmapToggle={onHeatmapToggle}
+            heatmapDisabled={heatmapDisabled}
+          />
 
           <div className="map-header-profile rounded-full bg-card/90 shadow-md backdrop-blur-md">
             <ProfileMenu />

@@ -35,7 +35,8 @@ import { cn } from "@/shared/utils/utils";
 interface PromoteMunicipalAdminDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  user: AdminUser | null;
+  /** Subiectul promovării — folosit doar pentru textul descrierii. */
+  user: Pick<AdminUser, "username"> | null;
   loading: boolean;
   onConfirm: (payload: PromoteMunicipalAdminPayload) => Promise<void> | void;
 }

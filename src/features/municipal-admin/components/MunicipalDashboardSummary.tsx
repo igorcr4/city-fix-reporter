@@ -54,7 +54,7 @@ export function MunicipalDashboardSummary({
   onStatusSelect,
 }: MunicipalDashboardSummaryProps) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="mx-auto grid w-full max-w-7xl gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {summaryCards.map((card) => {
         const Icon = card.icon;
         const value = summary[card.key];

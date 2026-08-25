@@ -1,20 +1,30 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/core/auth/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import type { Report, ReportCategory } from "@/shared/types";
+import type { Report } from "@/shared/types";
 import { ReportMap } from "@/features/reports/components/ReportMap";
 import { MapHeader } from "@/features/reports/components/MapHeader";
 import { FloatingAddButton } from "@/features/reports/components/FloatingAddButton";
 import { Loader2 } from "lucide-react";
 import { getAllReports } from "@/core/api/api";
+import {
+  filterReportsForMap,
+  type ReportMapFilter,
+} from "@/features/reports/helpers/reportMapFilters";
+import {
+  readStoredReportMapFilter,
+  storeReportMapFilter,
+} from "@/features/reports/helpers/reportMapState";
 
 export default function MapPage() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [reports, setReports] = useState<Report[]>([]);
-  const [selectedCategory, setSelectedCategory] =
-    useState<ReportCategory | "ALL">("ALL");
+  const [selectedFilter, setSelectedFilter] = useState<ReportMapFilter>(
+    () => readStoredReportMapFilter() ?? "ALL"
+  );
+  const [isHeatmapVisible, setIsHeatmapVisible] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,9 +62,12 @@ export default function MapPage() {
   }, [isAuthenticated, navigate]);
 
   const filteredReports = useMemo(() => {
-    if (selectedCategory === "ALL") return reports;
-    return reports.filter((report) => report.category === selectedCategory);
-  }, [reports, selectedCategory]);
+    return filterReportsForMap(reports, selectedFilter);
+  }, [reports, selectedFilter]);
+
+  useEffect(() => {
+    storeReportMapFilter(selectedFilter);
+  }, [selectedFilter]);
 
   const focusedMapTarget = useMemo(() => {
     const latitudeParam = searchParams.get("lat");
@@ -91,8 +104,11 @@ export default function MapPage() {
   return (
     <div className="relative h-[100dvh] w-screen overflow-hidden">
       <MapHeader
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
+        selectedFilter={selectedFilter}
+        onFilterChange={setSelectedFilter}
+        isHeatmapVisible={isHeatmapVisible}
+        onHeatmapToggle={() => setIsHeatmapVisible((current) => !current)}
+        heatmapDisabled={filteredReports.length === 0}
       />
 
       <ReportMap
@@ -100,6 +116,7 @@ export default function MapPage() {
         className="h-full w-full"
         focusedReportId={focusedMapTarget?.reportId ?? null}
         focusedLocation={focusedMapTarget}
+        isHeatmapVisible={isHeatmapVisible}
       />
 
       <FloatingAddButton />

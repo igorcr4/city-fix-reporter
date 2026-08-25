@@ -82,7 +82,7 @@ export function AdminUserDetailsCard({
 
           <div className="rounded-xl border border-border bg-background p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Municipalitate
+              Oraș
             </p>
             <p className="mt-2 flex items-center gap-2 text-sm text-foreground">
               <Building2 className="h-4 w-4 text-muted-foreground" />
