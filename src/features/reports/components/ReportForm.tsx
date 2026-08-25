@@ -6,15 +6,16 @@ import {
   useEffect,
   useRef,
 } from "react";
-import { getCities, getCountries, getStates } from "@/core/api/geography";
+import {
+  getCities,
+  getCountries,
+  getGeocoding,
+  getStates,
+} from "@/core/api/geography";
 import type { ReportCategory, CreateReportRequest, UpdateReportRequest } from "@/shared/types";
 import type { GeographyCity, GeographyCountry, GeographyState } from "@/shared/types";
 import { CATEGORY_LABELS } from "@/shared/types";
-import { getMyReports, reverseGeocodeLocationDetails } from "@/core/api/api";
-import {
-  getAdministrativeMatchKey,
-  getLocalityMatchKey,
-} from "@/core/location/administrativeLocation";
+import { getMyReports } from "@/core/api/api";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -67,7 +68,6 @@ export function ReportForm({
   const isEditMode = !!initialData;
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const addressEditedManuallyRef = useRef(false);
   const latitudeRef = useRef<number | null>(null);
   const longitudeRef = useRef<number | null>(null);
 
@@ -82,20 +82,18 @@ export function ReportForm({
     lng: number;
   } | null>(null);
   const [address, setAddress] = useState("");
-  const [detectedAddress, setDetectedAddress] = useState("");
   const [locationDetailsLoading, setLocationDetailsLoading] = useState(false);
   const [detectedCountry, setDetectedCountry] = useState("");
   const [detectedState, setDetectedState] = useState("");
   const [detectedCity, setDetectedCity] = useState("");
-  // Selecția administrativă se ține direct în coduri CSC, nu în denumiri:
-  // aceeași reprezentare pentru orice țară.
+  // Backendul rezolvă punctul și întoarce coduri gata mapate; frontendul doar
+  // le preia. Orașul are doar nume, deci selecția se ține pe nume.
   const [countryIso2, setCountryIso2] = useState("");
   const [stateIso2, setStateIso2] = useState("");
-  const [selectedCityId, setSelectedCityId] = useState<number | null>(null);
-  // Țara detectată de geocoder. Cât timp selecția e în aceeași țară, orașul
-  // detectat rămâne un candidat valid — inclusiv dacă regiunea a fost aleasă
-  // manual. Dacă utilizatorul trece în altă țară, nu mai e relevant.
-  const [detectedCountryIso2, setDetectedCountryIso2] = useState("");
+  const [selectedCityName, setSelectedCityName] = useState("");
+  // Serverul a răspuns 422 sau a lăsat câmpuri necompletate — utilizatorul
+  // trebuie să aleagă manual ce lipsește.
+  const [locationUnresolved, setLocationUnresolved] = useState(false);
   const [countries, setCountries] = useState<GeographyCountry[]>([]);
   const [states, setStates] = useState<GeographyState[]>([]);
   const [cities, setCities] = useState<GeographyCity[]>([]);
@@ -106,7 +104,6 @@ export function ReportForm({
   const [locationDetailsError, setLocationDetailsError] = useState<string | null>(
     null
   );
-  const [addressEditedManually, setAddressEditedManually] = useState(false);
 
   const [file, setFile] = useState<File | undefined>();
   const [preview, setPreview] = useState<string | null>(null);
@@ -129,17 +126,14 @@ export function ReportForm({
       typeof initialData.longitude === "number" ? initialData.longitude : null
     );
     setAddress(initialData.address ?? "");
-    setDetectedAddress(initialData.address ?? "");
     setDetectedCountry("");
     setDetectedState("");
     setDetectedCity("");
     setCountryIso2("");
     setStateIso2("");
-    setSelectedCityId(null);
-    setDetectedCountryIso2("");
+    setSelectedCityName("");
+    setLocationUnresolved(false);
     setLocationDetailsError(null);
-    setAddressEditedManually(false);
-    addressEditedManuallyRef.current = false;
 
     setExistingImageUrl(initialData.imageUrl ?? null);
     setRemoveImage(false);
@@ -158,37 +152,23 @@ export function ReportForm({
     };
   }, [preview]);
 
+  // Geocodarea inversă e făcută de backend. Rezultatul e doar prefill pentru
+  // dropdown-uri; ce nu vine rezolvat rămâne pe alegere manuală.
   useEffect(() => {
-    if (latitude === null || longitude === null) {
-      setLocationDetailsLoading(false);
-      setLocationDetailsError(null);
-      setDetectedAddress("");
-      setDetectedCountry("");
-      setDetectedState("");
-      setDetectedCity("");
-      setAddressEditedManually(false);
-      addressEditedManuallyRef.current = false;
-      if (!isEditMode) {
-        setAddress("");
-        setCountryIso2("");
-        setStateIso2("");
-        setSelectedCityId(null);
-        setDetectedCountryIso2("");
+    if (isEditMode || latitude === null || longitude === null) {
+      if (latitude === null || longitude === null) {
+        setLocationDetailsLoading(false);
+        setLocationDetailsError(null);
+        setLocationUnresolved(false);
+        setDetectedCountry("");
+        setDetectedState("");
+        setDetectedCity("");
+        if (!isEditMode) {
+          setCountryIso2("");
+          setStateIso2("");
+          setSelectedCityName("");
+        }
       }
-      return;
-    }
-
-    const initialLatitude =
-      typeof initialData?.latitude === "number" ? initialData.latitude : null;
-    const initialLongitude =
-      typeof initialData?.longitude === "number" ? initialData.longitude : null;
-    const matchesInitialLocation =
-      latitude === initialLatitude && longitude === initialLongitude;
-
-    if (matchesInitialLocation && initialData?.address) {
-      setAddress(initialData.address);
-      setDetectedAddress(initialData.address);
-      setLocationDetailsLoading(false);
       return;
     }
 
@@ -196,56 +176,49 @@ export function ReportForm({
 
     setLocationDetailsLoading(true);
     setLocationDetailsError(null);
-    setAddressEditedManually(false);
-    addressEditedManuallyRef.current = false;
 
-    reverseGeocodeLocationDetails(latitude, longitude)
-      .then((details) => {
+    getGeocoding(latitude, longitude)
+      .then((place) => {
         if (cancelled) return;
-        const nextDetectedAddress = details.address ?? "";
-        // Valorile rămân brute: servesc doar la găsirea opțiunii CSC potrivite.
-        const nextDetectedCountry = details.country ?? "";
-        const nextDetectedState = details.state ?? "";
-        const nextDetectedCity = details.city ?? "";
 
-        setDetectedAddress(nextDetectedAddress);
-        setDetectedCountry(nextDetectedCountry);
-        setDetectedState(nextDetectedState);
-        setDetectedCity(nextDetectedCity);
-
-        if (!addressEditedManuallyRef.current) {
-          setAddress(nextDetectedAddress);
+        // 422 — punctul nu corespunde niciunei localități (ex. în larg).
+        if (!place) {
+          setDetectedCountry("");
+          setDetectedState("");
+          setDetectedCity("");
+          setCountryIso2("");
+          setStateIso2("");
+          setSelectedCityName("");
+          setLocationUnresolved(true);
+          return;
         }
 
-        if (!isEditMode) {
-          // Codurile ISO din Nominatim corespund direct cu iso2 din CSC,
-          // pentru orice țară. Orașul nu are cod — se potrivește după nume,
-          // iar dacă nu se potrivește, utilizatorul alege din dropdown.
-          setCountryIso2(details.countryIso2 ?? "");
-          setStateIso2(details.stateIso2 ?? "");
-          setSelectedCityId(null);
-          setDetectedCountryIso2(details.countryIso2 ?? "");
-        }
+        setDetectedCountry(place.country);
+        setDetectedState(place.state ?? "");
+        setDetectedCity(place.city ?? "");
+
+        setCountryIso2(place.countryIso2);
+        setStateIso2(place.stateIso2 ?? "");
+        setSelectedCityName(place.city ?? "");
+
+        // Orice nivel lăsat necompletat de server rămâne manual.
+        setLocationUnresolved(!place.stateIso2 || !place.city);
       })
       .catch((error) => {
         if (cancelled) return;
-        console.error("REVERSE GEOCODE ERROR:", error);
-        setDetectedAddress("");
+        console.error("GEOCODING ERROR:", error);
         setDetectedCountry("");
         setDetectedState("");
         setDetectedCity("");
-        if (!addressEditedManuallyRef.current) {
-          setAddress("");
-        }
-        if (!isEditMode) {
-          setCountryIso2("");
-          setStateIso2("");
-          setSelectedCityId(null);
-          setDetectedCountryIso2("");
-          setLocationDetailsError(
-            "Nu s-au putut identifica automat țara, regiunea și orașul pentru punctul ales."
-          );
-        }
+        setCountryIso2("");
+        setStateIso2("");
+        setSelectedCityName("");
+        setLocationUnresolved(true);
+        setLocationDetailsError(
+          error instanceof Error
+            ? error.message
+            : "Nu s-a putut identifica automat locația pentru punctul ales."
+        );
       })
       .finally(() => {
         if (cancelled) return;
@@ -255,14 +228,7 @@ export function ReportForm({
     return () => {
       cancelled = true;
     };
-  }, [
-    initialData?.address,
-    initialData?.latitude,
-    initialData?.longitude,
-    latitude,
-    longitude,
-    isEditMode,
-  ]);
+  }, [latitude, longitude, isEditMode]);
 
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const nextFile = e.target.files?.[0];
@@ -370,60 +336,33 @@ export function ReportForm({
 
   const handleAddressChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
     setAddress(e.target.value);
-    setAddressEditedManually(true);
-    addressEditedManuallyRef.current = true;
   };
 
-  // Identitatea vine din codurile CSC. Selecția utilizatorului și prefill-ul
-  // din reverse-geocode ajung amândouă aici sub formă de iso2 — aceeași
-  // reprezentare pentru orice țară.
+  // Backendul a rezolvat deja codurile; aici doar verificăm că selecția curentă
+  // există în listele încărcate. Nicio potrivire după nume în browser.
   const matchedCountry =
     countries.find((item) => item.iso2 === countryIso2) ?? null;
   const matchedState = states.find((item) => item.iso2 === stateIso2) ?? null;
-
-  // Orașul nu are cod ISO, deci se potrivește după nume — dar doar în lista
-  // regiunii deja fixate, unde candidații sunt puțini. Prefill-ul se aplică
-  // numai dacă selecția e încă în țara detectată de geocoder.
-  const isDetectedCityApplicable =
-    !!detectedCity && !!detectedCountryIso2 && countryIso2 === detectedCountryIso2;
-
-  const detectedCityKey = getAdministrativeMatchKey(detectedCity);
-  const detectedCityLocalityKey = getLocalityMatchKey(detectedCity);
-
   const matchedCity =
-    (selectedCityId !== null
-      ? cities.find((item) => item.id === selectedCityId)
-      : undefined) ??
-    (isDetectedCityApplicable
-      ? // Întâi potrivire exactă, apoi ignorând termenii administrativi
-        // ("Chișinău Municipality" ↔ "Chișinău").
-        cities.find(
-          (item) => getAdministrativeMatchKey(item.name) === detectedCityKey
-        ) ??
-        cities.find(
-          (item) => getLocalityMatchKey(item.name) === detectedCityLocalityKey
-        )
-      : undefined) ??
-    null;
+    cities.find((item) => item.name === selectedCityName) ?? null;
 
   /**
-   * Identitatea geografică trimisă backendului. `null` cât timp țara, regiunea
-   * sau orașul nu sunt rezolvate din opțiunile CSC — atunci submit-ul e blocat.
+   * Identitatea trimisă backendului. `null` cât timp un nivel nu e rezolvat —
+   * atunci submit-ul e blocat.
    */
   const canonicalLocation =
     matchedCountry && matchedState && matchedCity
       ? {
           countryIso2: matchedCountry.iso2,
           stateIso2: matchedState.iso2,
-          cscCityId: matchedCity.id,
           countryName: matchedCountry.name,
           stateName: matchedState.name,
           cityName: matchedCity.name,
         }
       : null;
 
-  // În creare secțiunea e mereu vizibilă: avem nevoie garantat de cscCityId,
-  // iar geocoderul nu e sursă de identitate.
+  // În creare secțiunea e mereu vizibilă: identitatea administrativă e
+  // obligatorie, iar geocodarea e doar prefill.
   const shouldShowAdministrativeSection =
     !isEditMode && latitude !== null && longitude !== null;
 
@@ -433,26 +372,11 @@ export function ReportForm({
     detectedCity ? `Oraș: ${detectedCity}` : null,
   ].filter((detail): detail is string => !!detail);
 
-  // Un nivel care nu s-a putut mapa rămâne pe manual și e marcat vizual, fără
-  // să blocheze nivelurile care S-AU mapat.
-  const needsCountryConfirmation =
+  // Indiciu non-blocant: ceva nu a putut fi identificat automat.
+  const showManualSelectionHint =
     shouldShowAdministrativeSection &&
     !locationDetailsLoading &&
-    !countriesLoading &&
-    countries.length > 0 &&
-    !matchedCountry;
-  const needsStateConfirmation =
-    shouldShowAdministrativeSection &&
-    !!matchedCountry &&
-    !statesLoading &&
-    states.length > 0 &&
-    !matchedState;
-  const needsCityConfirmation =
-    shouldShowAdministrativeSection &&
-    !!matchedState &&
-    !citiesLoading &&
-    cities.length > 0 &&
-    !matchedCity;
+    locationUnresolved;
 
   useEffect(() => {
     if (
@@ -559,16 +483,15 @@ export function ReportForm({
       !stateIso2
     ) {
       setCities([]);
-      setSelectedCityId(null);
       setCitiesLoading(false);
       return;
     }
 
     let cancelled = false;
 
-    // Lista se schimbă → un id ales anterior nu mai e valid.
+    // Nu golim selecția aici: prefill-ul din geocodare sosește înaintea listei.
+    // Validarea se face prin apartenența la listă (matchedCity).
     setCities([]);
-    setSelectedCityId(null);
     setCitiesLoading(true);
     setGeographyError(null);
 
@@ -603,26 +526,19 @@ export function ReportForm({
     stateIso2,
   ]);
 
-  const restoreDetectedAddress = () => {
-    setAddress(detectedAddress);
-    setAddressEditedManually(false);
-    addressEditedManuallyRef.current = false;
-  };
-
   const handleCountrySelect = (nextCountryIso2: string) => {
     setCountryIso2(nextCountryIso2);
     setStateIso2("");
-    setSelectedCityId(null);
+    setSelectedCityName("");
   };
 
   const handleStateSelect = (nextStateIso2: string) => {
     setStateIso2(nextStateIso2);
-    setSelectedCityId(null);
+    setSelectedCityName("");
   };
 
-  const handleCitySelect = (cityId: string) => {
-    const nextCity = cities.find((item) => String(item.id) === cityId);
-    setSelectedCityId(nextCity?.id ?? null);
+  const handleCitySelect = (cityName: string) => {
+    setSelectedCityName(cityName);
   };
 
   const openFilePicker = () => {
@@ -663,7 +579,7 @@ export function ReportForm({
       longitude === null ||
       isCreateMediaMissing ||
       (!isEditMode && administrativeLocationLoading) ||
-      // Fără identitate canonică (în special cscCityId) nu trimitem nimic.
+      // Fără identitate administrativă completă nu trimitem nimic.
       (!isEditMode && !canonicalLocation)
     ) {
       return;
@@ -825,49 +741,19 @@ export function ReportForm({
       )}
 
       <div className="space-y-1.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Label htmlFor="address">Adresă</Label>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={restoreDetectedAddress}
-            disabled={
-              loading ||
-              locationDetailsLoading ||
-              !detectedAddress ||
-              address === detectedAddress
-            }
-          >
-            <RefreshCcw className="h-4 w-4" />
-            Completează din locație
-          </Button>
-        </div>
+        <Label htmlFor="address">Adresă</Label>
         <Textarea
           id="address"
           value={address}
           onChange={handleAddressChange}
-          placeholder="Poți scrie manual adresa exactă dacă o cunoști."
+          placeholder="Ex: Strada Eminescu 12, lângă intersecție"
           rows={3}
         />
         <p className="text-xs text-muted-foreground">
-          Adresa este completată automat din punctul ales pe hartă, dar o poți
-          edita manual dacă vrei mai multă precizie.
+          Scrie adresa exactă a problemei. Localitatea o alegi separat mai jos.
         </p>
-        {locationDetailsLoading && (
-          <p className="text-xs text-muted-foreground">
-            Se caută adresa pentru locația aleasă...
-          </p>
-        )}
         {!isEditMode && locationDetailsError && (
           <p className="text-xs text-destructive">{locationDetailsError}</p>
-        )}
-        {addressEditedManually && detectedAddress && (
-          <p className="text-xs text-muted-foreground">
-            Ai modificat manual adresa. Poți reveni la varianta detectată cu
-            butonul de mai sus.
-          </p>
         )}
       </div>
 
@@ -919,11 +805,6 @@ export function ReportForm({
                   ))}
                 </SelectContent>
               </Select>
-              {needsCountryConfirmation && (
-                <p className="text-xs text-amber-600 dark:text-amber-500">
-                  Confirmă țara din listă.
-                </p>
-              )}
             </div>
 
             <div className="space-y-1.5">
@@ -958,17 +839,12 @@ export function ReportForm({
                   ))}
                 </SelectContent>
               </Select>
-              {needsStateConfirmation && (
-                <p className="text-xs text-amber-600 dark:text-amber-500">
-                  Confirmă regiunea din listă.
-                </p>
-              )}
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="city">Oraș</Label>
               <Select
-                value={matchedCity ? String(matchedCity.id) : undefined}
+                value={matchedCity?.name ?? undefined}
                 onValueChange={handleCitySelect}
                 disabled={
                   loading ||
@@ -991,10 +867,7 @@ export function ReportForm({
                 </SelectTrigger>
                 <SelectContent>
                   {cities.map((cityOption) => (
-                    <SelectItem
-                      key={cityOption.id}
-                      value={String(cityOption.id)}
-                    >
+                    <SelectItem key={cityOption.name} value={cityOption.name}>
                       {cityOption.name}
                     </SelectItem>
                   ))}
@@ -1003,11 +876,9 @@ export function ReportForm({
             </div>
           </div>
 
-          {needsCityConfirmation && (
+          {showManualSelectionHint && (
             <p className="text-xs text-amber-600 dark:text-amber-500">
-              {detectedCity
-                ? `Orașul detectat automat (${detectedCity}) nu a putut fi asociat unei localități din listă. Confirmă orașul din listă.`
-                : "Confirmă orașul din listă."}
+              Nu am putut identifica automat locația — te rugăm alege manual.
             </p>
           )}
 

@@ -28,7 +28,6 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs";
 import { CheckCircle2, Expand, Loader2, MapPin, Search, SlidersHorizontal } from "lucide-react";
 import { toast } from "@/shared/hooks/use-toast";
-import { reverseGeocodeCoordinates } from "@/core/api/api";
 
 const categories: Array<ReportCategory | "ALL"> = ["ALL", "ROAD", "LIGHTING", "WASTE", "VANDALISM", "OTHER"];
 
@@ -122,57 +121,6 @@ export default function MyReportsPage() {
   const openReportOnMap = (report: Report) => {
     navigate(getReportMapUrl(report));
   };
-
-  useEffect(() => {
-    const reportsWithoutAddress = reports.filter((report) => !report.address?.trim());
-    if (reportsWithoutAddress.length === 0) return;
-
-    let cancelled = false;
-
-    const hydrateAddresses = async () => {
-      const resolved = await Promise.all(
-        reportsWithoutAddress.map(async (report) => {
-          try {
-            const address = await reverseGeocodeCoordinates(
-              report.latitude,
-              report.longitude
-            );
-
-            return {
-              id: report.id,
-              address,
-            };
-          } catch (error) {
-            console.error("REPORT ADDRESS RESOLVE ERROR:", error);
-            return {
-              id: report.id,
-              address: null,
-            };
-          }
-        })
-      );
-
-      if (cancelled) return;
-
-      setReports((current) =>
-        current.map((report) => {
-          const match = resolved.find((item) => item.id === report.id);
-          if (!match?.address) return report;
-
-          return {
-            ...report,
-            address: match.address,
-          };
-        })
-      );
-    };
-
-    hydrateAddresses();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [reports]);
 
   const groupedReports = useMemo(() => splitMyReportsByStatus(reports), [reports]);
   const selectedReports = groupedReports[selectedTab];

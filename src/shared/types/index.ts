@@ -41,22 +41,32 @@ export interface User {
 }
 
 export interface GeographyCountry {
-  id?: number;
   name: string;
   iso2: string;
 }
 
 export interface GeographyState {
-  id?: number;
   name: string;
   iso2: string;
 }
 
+/** Orașele nu au identificator propriu — numele este cheia. */
 export interface GeographyCity {
-  id: number;
   name: string;
-  countryIso2?: string;
-  stateIso2?: string;
+}
+
+/**
+ * Rezultatul geocodării inverse făcute de backend. `stateIso2`, `state` și
+ * `city` pot lipsi pentru zone pe care serverul nu le poate rezolva complet.
+ */
+export interface GeocodedPlace {
+  countryIso2: string;
+  stateIso2: string | null;
+  country: string;
+  state: string | null;
+  city: string | null;
+  latitude: number;
+  longitude: number;
 }
 
 export interface LoginRequest {
@@ -78,11 +88,9 @@ export interface CreateReportRequest {
   longitude: number;
   /** Adresa în limba locală, așa cum vine de la geocoder / utilizator. */
   address?: string;
-  /** Identitate geografică canonică (CountryStateCity) — cheia primăriei. */
+  /** Identitate geografică canonică — cheia după care backendul află primăria. */
   countryIso2: string;
   stateIso2: string;
-  cscCityId: number;
-  /** Denumiri canonice EN din CSC, doar informativ pentru backend. */
   countryName: string;
   stateName: string;
   cityName: string;

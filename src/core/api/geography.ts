@@ -1,106 +1,84 @@
 import { apiFetch } from "@/core/api/http";
 import { API_BASE_URL as BASE_URL } from "@/core/config/api";
 import type {
+  GeocodedPlace,
   GeographyCity,
   GeographyCountry,
   GeographyState,
 } from "@/shared/types";
-import { compactAdministrativeText } from "@/core/location/administrativeLocation";
+
 const GEOGRAPHY_COUNTRIES_ENDPOINT = `${BASE_URL}/geography/countries`;
 const GEOGRAPHY_STATES_ENDPOINT = `${BASE_URL}/geography/states`;
 const GEOGRAPHY_CITIES_ENDPOINT = `${BASE_URL}/geography/cities`;
+const GEOGRAPHY_GEOCODING_ENDPOINT = `${BASE_URL}/geography/geocoding`;
 
-interface RawCountry {
-  id?: number;
-  name?: string;
-  countryName?: string;
-  iso2?: string;
-  countryIso2?: string;
-  code?: string;
+/** Backendul semnalează cu 422 că punctul nu poate fi rezolvat la o localitate. */
+const UNPROCESSABLE_ENTITY = 422;
+
+function readString(source: Record<string, unknown>, key: string): string | null {
+  const value = source[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-interface RawState {
-  id?: number;
-  name?: string;
-  stateName?: string;
-  iso2?: string;
-  stateIso2?: string;
-  code?: string;
+function readNumber(source: Record<string, unknown>, key: string): number | null {
+  const value = source[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-interface RawCity {
-  id?: number;
-  cityId?: number;
-  municipalityId?: number;
-  name?: string;
-  cityName?: string;
-  municipalityName?: string;
-  countryIso2?: string;
-  stateIso2?: string;
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
-function normalizeCountry(raw: RawCountry): GeographyCountry | null {
-  const iso2 = raw.iso2 ?? raw.countryIso2 ?? raw.code;
-  const name = raw.name ?? raw.countryName;
-
-  if (!iso2 || !name) return null;
-
-  // `name` rămâne numele canonic EN din CSC — traducerea RO se face la render.
-  return {
-    id: raw.id,
-    name: compactAdministrativeText(name),
-    iso2,
-  };
-}
-
-function normalizeState(raw: RawState): GeographyState | null {
-  const iso2 = raw.iso2 ?? raw.stateIso2 ?? raw.code;
-  const name = raw.name ?? raw.stateName;
-
-  if (!iso2 || !name) return null;
-
-  return {
-    id: raw.id,
-    name: compactAdministrativeText(name),
-    iso2,
-  };
-}
-
-function normalizeCity(raw: RawCity): GeographyCity | null {
-  const id = raw.id ?? raw.cityId ?? raw.municipalityId;
-  const name = raw.name ?? raw.cityName ?? raw.municipalityName;
-
-  if (!id || !name) return null;
-
-  return {
-    id: Number(id),
-    name: compactAdministrativeText(name),
-    countryIso2: raw.countryIso2,
-    stateIso2: raw.stateIso2,
-  };
-}
-
-function extractListPayload<T>(raw: unknown): T[] {
-  if (Array.isArray(raw)) return raw as T[];
-
-  if (raw && typeof raw === "object") {
-    const listCandidates = [
-      "items",
-      "content",
-      "data",
-      "results",
-      "countries",
-      "states",
-      "cities",
-    ] as const;
-
-    for (const key of listCandidates) {
-      const value = (raw as Record<string, unknown>)[key];
-      if (Array.isArray(value)) return value as T[];
-    }
+/**
+ * Contractul este fix: lista vine ca array la rădăcină. Orice altă formă e o
+ * nepotrivire de contract și trebuie semnalată, nu ascunsă printr-o listă goală.
+ */
+function expectArray(raw: unknown, resourceLabel: string): unknown[] {
+  if (!Array.isArray(raw)) {
+    throw new Error(
+      `Răspuns neașteptat de la server pentru ${resourceLabel}: se aștepta o listă.`
+    );
   }
 
-  return [];
+  return raw;
+}
+
+/** {iso2, name} — folosit identic pentru țări și regiuni. */
+function parseIso2Entries<T extends GeographyCountry | GeographyState>(
+  raw: unknown,
+  resourceLabel: string
+): T[] {
+  return expectArray(raw, resourceLabel).map((entry, index) => {
+    const record = asRecord(entry);
+    const iso2 = record ? readString(record, "iso2") : null;
+    const name = record ? readString(record, "name") : null;
+
+    if (!iso2 || !name) {
+      throw new Error(
+        `Răspuns neașteptat de la server pentru ${resourceLabel}: elementul ${index + 1} nu conține "iso2" și "name".`
+      );
+    }
+
+    return { iso2, name } as T;
+  });
+}
+
+/** {name} — orașele nu au id sau cod. */
+function parseCityEntries(raw: unknown): GeographyCity[] {
+  return expectArray(raw, "orașe").map((entry, index) => {
+    const record = asRecord(entry);
+    const name = record ? readString(record, "name") : null;
+
+    if (!name) {
+      throw new Error(
+        `Răspuns neașteptat de la server pentru orașe: elementul ${index + 1} nu conține "name".`
+      );
+    }
+
+    return { name };
+  });
 }
 
 async function parseErrorMessage(res: Response, fallback: string): Promise<string> {
@@ -137,10 +115,7 @@ export async function getCountries(): Promise<GeographyCountry[]> {
     );
   }
 
-  const raw = extractListPayload<RawCountry>(await res.json());
-  return raw
-    .map(normalizeCountry)
-    .filter((country): country is GeographyCountry => !!country);
+  return parseIso2Entries<GeographyCountry>(await res.json(), "țări");
 }
 
 export async function getStates(countryIso2: string): Promise<GeographyState[]> {
@@ -156,10 +131,7 @@ export async function getStates(countryIso2: string): Promise<GeographyState[]> 
     );
   }
 
-  const raw = extractListPayload<RawState>(await res.json());
-  return raw
-    .map(normalizeState)
-    .filter((state): state is GeographyState => !!state);
+  return parseIso2Entries<GeographyState>(await res.json(), "regiuni");
 }
 
 export async function getCities(
@@ -178,8 +150,52 @@ export async function getCities(
     );
   }
 
-  const raw = extractListPayload<RawCity>(await res.json());
-  return raw
-    .map(normalizeCity)
-    .filter((city): city is GeographyCity => !!city);
+  return parseCityEntries(await res.json());
+}
+
+/**
+ * Geocodare inversă făcută de backend. Întoarce `null` când serverul răspunde
+ * 422 — adică punctul nu corespunde niciunei localități (ex. în larg). Nu e o
+ * eroare de sistem, ci un caz normal în care utilizatorul alege manual.
+ * Erorile reale (rețea, 5xx, sesiune expirată) sunt aruncate mai departe.
+ */
+export async function getGeocoding(
+  latitude: number,
+  longitude: number
+): Promise<GeocodedPlace | null> {
+  const searchParams = new URLSearchParams({
+    lat: String(latitude),
+    lon: String(longitude),
+  });
+  const res = await apiFetch(
+    `${GEOGRAPHY_GEOCODING_ENDPOINT}?${searchParams.toString()}`
+  );
+
+  if (res.status === UNPROCESSABLE_ENTITY) return null;
+
+  if (!res.ok) {
+    throw new Error(
+      await parseErrorMessage(
+        res,
+        "Nu s-a putut identifica automat locația pentru punctul ales."
+      )
+    );
+  }
+
+  const record = asRecord(await res.json());
+  const countryIso2 = record ? readString(record, "countryIso2") : null;
+  const country = record ? readString(record, "country") : null;
+
+  // Fără țară nu avem de unde porni cascada; tratăm la fel ca 422.
+  if (!record || !countryIso2 || !country) return null;
+
+  return {
+    countryIso2,
+    country,
+    stateIso2: readString(record, "stateIso2"),
+    state: readString(record, "state"),
+    city: readString(record, "city"),
+    latitude: readNumber(record, "latitude") ?? latitude,
+    longitude: readNumber(record, "longitude") ?? longitude,
+  };
 }

@@ -1,11 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/core/auth/AuthContext";
-import {
-  deleteReport,
-  getReportById,
-  reverseGeocodeCoordinates,
-} from "@/core/api/api";
+import { deleteReport, getReportById } from "@/core/api/api";
 import { ReportCommentsSection } from "@/features/comments/components/ReportCommentsSection";
 import { ConfirmationButton } from "@/features/confirmations/components/ConfirmationButton";
 import type { Report } from "@/shared/types";
@@ -23,7 +19,6 @@ export default function ReportDetailPage() {
   const navigate = useNavigate();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
-  const [addressLoading, setAddressLoading] = useState(false);
 
   const loadReport = useCallback(async () => {
     if (!id) {
@@ -56,41 +51,6 @@ export default function ReportDetailPage() {
   useEffect(() => {
     loadReport();
   }, [loadReport]);
-
-  useEffect(() => {
-    if (!report || report.address?.trim()) return;
-
-    let cancelled = false;
-    setAddressLoading(true);
-
-    reverseGeocodeCoordinates(report.latitude, report.longitude)
-      .then((address) => {
-        if (cancelled || !address) return;
-
-        setReport((current) =>
-          current && current.id === report.id
-            ? {
-                ...current,
-                address,
-              }
-            : current
-        );
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          console.error("REPORT DETAIL ADDRESS RESOLVE ERROR:", error);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setAddressLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [report]);
 
   const handleDelete = async () => {
     if (!report || !confirm("Sigur vrei să ștergi acest raport?")) return;
@@ -222,10 +182,7 @@ export default function ReportDetailPage() {
             <div className="flex items-start gap-2 text-sm leading-relaxed text-foreground/90 md:text-base">
               <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
               <span>
-                {displayAddress ||
-                  (addressLoading
-                    ? "Se caută adresa pentru locația raportului..."
-                    : "Adresa nu este disponibilă.")}
+                {displayAddress || "Adresa nu este disponibilă."}
               </span>
             </div>
           </div>
