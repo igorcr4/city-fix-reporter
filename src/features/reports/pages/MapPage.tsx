@@ -6,7 +6,7 @@ import { ReportMap } from "@/features/reports/components/ReportMap";
 import { MapHeader } from "@/features/reports/components/MapHeader";
 import { FloatingAddButton } from "@/features/reports/components/FloatingAddButton";
 import { Loader2 } from "lucide-react";
-import { getAllReports } from "@/core/api/api";
+import { getAllReports } from "@/features/reports/api/reports";
 import {
   filterReportsForMap,
   type ReportMapFilter,

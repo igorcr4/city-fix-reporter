@@ -6,6 +6,7 @@ import type {
 } from "@/features/municipal-admin/types";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { cn } from "@/shared/utils/utils";
+import { REPORT_STATUS } from "@/shared/types";
 
 interface MunicipalDashboardSummaryProps {
   summary: MunicipalDashboardSummary;
@@ -28,7 +29,7 @@ const summaryCards = [
     accent: "text-amber-700",
     bg: "bg-amber-100",
     icon: Clock3,
-    status: "NEW",
+    status: REPORT_STATUS.NEW,
   },
   {
     key: "inProgress",
@@ -36,7 +37,7 @@ const summaryCards = [
     accent: "text-sky-700",
     bg: "bg-sky-100",
     icon: Wrench,
-    status: "IN_PROGRESS",
+    status: REPORT_STATUS.IN_PROGRESS,
   },
   {
     key: "resolved",
@@ -44,7 +45,7 @@ const summaryCards = [
     accent: "text-emerald-700",
     bg: "bg-emerald-100",
     icon: CheckCircle2,
-    status: "RESOLVED",
+    status: REPORT_STATUS.RESOLVED,
   },
 ] as const;
 

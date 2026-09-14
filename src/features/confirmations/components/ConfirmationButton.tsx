@@ -8,6 +8,7 @@ import {
   type ConfirmationToggleResult,
 } from "@/features/confirmations/api/confirmations";
 import type { Report } from "@/shared/types";
+import { REPORT_STATUS } from "@/shared/types";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/utils/utils";
 
@@ -39,7 +40,7 @@ export function ConfirmationButton({
     setCount(report.confirmationCount);
   }, [report.id, report.confirmedByCurrentUser, report.confirmationCount]);
 
-  const isResolved = report.status === "RESOLVED";
+  const isResolved = report.status === REPORT_STATUS.RESOLVED;
   const isAuthor = isAuthenticated && user?.id === report.userId;
   // Cazuri pe care backend-ul le refuză oricum → butonul nu trebuie apăsabil.
   const locked = isResolved || isAuthor;

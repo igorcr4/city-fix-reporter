@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import {
+  REPORT_STATUS,
   CATEGORY_LABELS,
   STATUS_LABELS,
   type Report,
@@ -44,7 +45,10 @@ interface MunicipalReportUpdateDialogProps {
   onConfirm: (data: MunicipalReportUpdateData) => Promise<void> | void;
 }
 
-const STATUS_OPTIONS: ReportStatus[] = ["NEW", "IN_PROGRESS"];
+const STATUS_OPTIONS: ReportStatus[] = [
+  REPORT_STATUS.NEW,
+  REPORT_STATUS.IN_PROGRESS,
+];
 
 export function MunicipalReportUpdateDialog({
   open,
@@ -54,14 +58,18 @@ export function MunicipalReportUpdateDialog({
   onConfirm,
 }: MunicipalReportUpdateDialogProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [nextStatus, setNextStatus] = useState<ReportStatus>("NEW");
+  const [nextStatus, setNextStatus] = useState<ReportStatus>(REPORT_STATUS.NEW);
   const [file, setFile] = useState<File | undefined>();
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!report || !open) return;
 
-    setNextStatus(report.status === "RESOLVED" ? "IN_PROGRESS" : report.status);
+    setNextStatus(
+      report.status === REPORT_STATUS.RESOLVED
+        ? REPORT_STATUS.IN_PROGRESS
+        : report.status
+    );
     setFile(undefined);
     setPreviewUrl(null);
   }, [open, report]);
@@ -80,7 +88,7 @@ export function MunicipalReportUpdateDialog({
     };
   }, [file]);
 
-  const finalStatus: ReportStatus = file ? "RESOLVED" : nextStatus;
+  const finalStatus: ReportStatus = file ? REPORT_STATUS.RESOLVED : nextStatus;
   const hasChanges = Boolean(
     report && (finalStatus !== report.status || file)
   );

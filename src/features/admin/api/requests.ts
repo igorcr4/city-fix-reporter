@@ -1,9 +1,13 @@
 import { apiFetch } from "@/core/api/http";
+import { extractListPayload, parseErrorMessage } from "@/core/api/parsing";
 import { API_BASE_URL as BASE_URL } from "@/core/config/api";
 import type {
   MunicipalityRequest,
   PromoteMunicipalAdminPayload,
 } from "@/features/admin/types";
+
+const ADMIN_FORBIDDEN_MESSAGE =
+  "Nu ai permisiuni de admin pentru această acțiune.";
 
 const PENDING_REQUESTS_ENDPOINT = `${BASE_URL}/requests/pending`;
 const APPROVE_REQUEST_ENDPOINT = `${BASE_URL}/requests/approve`;
@@ -17,46 +21,6 @@ interface RawMunicipalityRequest {
   employeePosition?: string;
   justification?: string;
   username?: string;
-}
-
-async function parseErrorMessage(res: Response, fallback: string): Promise<string> {
-  if (res.status === 401) {
-    return "Sesiunea nu mai este validă sau tokenul lipsește. Deloghează-te și autentifică-te din nou.";
-  }
-
-  if (res.status === 403) {
-    return "Nu ai permisiuni de admin pentru această acțiune.";
-  }
-
-  const text = await res.text().catch(() => "");
-  if (!text) return fallback;
-
-  try {
-    const parsed = JSON.parse(text) as {
-      message?: string;
-      error?: string;
-      detail?: string;
-    };
-
-    return parsed.message ?? parsed.detail ?? parsed.error ?? fallback;
-  } catch {
-    return text;
-  }
-}
-
-function extractListPayload<T>(raw: unknown): T[] {
-  if (Array.isArray(raw)) return raw as T[];
-
-  if (raw && typeof raw === "object") {
-    const listCandidates = ["items", "content", "data", "results"] as const;
-
-    for (const key of listCandidates) {
-      const value = (raw as Record<string, unknown>)[key];
-      if (Array.isArray(value)) return value as T[];
-    }
-  }
-
-  return [];
 }
 
 function normalizeRequest(raw: RawMunicipalityRequest): MunicipalityRequest {
@@ -76,7 +40,9 @@ export async function getPendingRequests(): Promise<MunicipalityRequest[]> {
 
   if (!res.ok) {
     throw new Error(
-      await parseErrorMessage(res, "Nu s-au putut încărca cererile în așteptare.")
+      await parseErrorMessage(res, "Nu s-au putut încărca cererile în așteptare.", {
+        forbiddenMessage: ADMIN_FORBIDDEN_MESSAGE,
+      })
     );
   }
 
@@ -98,7 +64,9 @@ export async function approveRequest(
 
   if (!res.ok) {
     throw new Error(
-      await parseErrorMessage(res, "Nu s-a putut aproba cererea.")
+      await parseErrorMessage(res, "Nu s-a putut aproba cererea.", {
+        forbiddenMessage: ADMIN_FORBIDDEN_MESSAGE,
+      })
     );
   }
 }
@@ -110,7 +78,9 @@ export async function rejectRequest(requestId: number): Promise<void> {
 
   if (!res.ok) {
     throw new Error(
-      await parseErrorMessage(res, "Nu s-a putut respinge cererea.")
+      await parseErrorMessage(res, "Nu s-a putut respinge cererea.", {
+        forbiddenMessage: ADMIN_FORBIDDEN_MESSAGE,
+      })
     );
   }
 }

@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { ro } from "date-fns/locale/ro";
 
 import type { Report } from "@/shared/types";
+import { REPORT_STATUS } from "@/shared/types";
 
 export interface PeriodStatPoint {
   /** Cheie sortabilă, ex. „2026-06". */
@@ -38,7 +39,7 @@ export function getReportsByMonth(reports: Report[]): PeriodStatPoint[] {
     }
 
     bucket.total += 1;
-    if (report.status === "RESOLVED") {
+    if (report.status === REPORT_STATUS.RESOLVED) {
       bucket.resolved += 1;
     }
   }

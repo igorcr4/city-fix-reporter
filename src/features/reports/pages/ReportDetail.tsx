@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/core/auth/AuthContext";
-import { deleteReport, getReportById } from "@/core/api/api";
+import { deleteReport, getReportById } from "@/features/reports/api/reports";
 import { ReportCommentsSection } from "@/features/comments/components/ReportCommentsSection";
 import { ConfirmationButton } from "@/features/confirmations/components/ConfirmationButton";
 import type { Report } from "@/shared/types";
-import { CATEGORY_LABELS } from "@/shared/types";
+import { REPORT_STATUS, CATEGORY_LABELS } from "@/shared/types";
 import { StatusBadge } from "@/features/reports/components/StatusBadge";
 import { Header } from "@/shared/components/layout/Header";
 import { Button } from "@/shared/components/ui/button";
@@ -86,7 +86,7 @@ export default function ReportDetailPage() {
   const isOwner = user?.id === report.userId;
   const displayAddress = report.address?.trim();
   const showComparison =
-    report.status === "RESOLVED" && !!report.imageUrl && !!report.afterImageUrl;
+    report.status === REPORT_STATUS.RESOLVED && !!report.imageUrl && !!report.afterImageUrl;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

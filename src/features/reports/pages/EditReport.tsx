@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/core/auth/AuthContext";
-import { getReportById, updateReport } from "@/core/api/api";
+import { getReportById, updateReport } from "@/features/reports/api/reports";
 import type { Report, UpdateReportRequest } from "@/shared/types";
 import { Header } from "@/shared/components/layout/Header";
 import { ReportForm } from "@/features/reports/components/ReportForm";

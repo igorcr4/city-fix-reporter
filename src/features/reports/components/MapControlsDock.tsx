@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Activity, Layers, MapPin, SlidersHorizontal } from "lucide-react";
 
-import { CATEGORY_LABELS } from "@/shared/types";
+import { REPORT_STATUS, CATEGORY_LABELS } from "@/shared/types";
 import {
   REPORT_MAP_CATEGORY_COLORS,
   RESOLVED_REPORT_MARKER_COLOR,
@@ -32,17 +32,17 @@ const mapFilters: ReportMapFilter[] = [
   "WASTE",
   "VANDALISM",
   "OTHER",
-  "RESOLVED",
+  REPORT_STATUS.RESOLVED,
 ];
 
 function getMapFilterLabel(filter: ReportMapFilter): string {
   if (filter === "ALL") return "Toate active";
-  if (filter === "RESOLVED") return "Rezolvate";
+  if (filter === REPORT_STATUS.RESOLVED) return "Rezolvate";
   return CATEGORY_LABELS[filter];
 }
 
 function getMapFilterColor(filter: Exclude<ReportMapFilter, "ALL">): string {
-  if (filter === "RESOLVED") return RESOLVED_REPORT_MARKER_COLOR;
+  if (filter === REPORT_STATUS.RESOLVED) return RESOLVED_REPORT_MARKER_COLOR;
   return REPORT_MAP_CATEGORY_COLORS[filter];
 }
 

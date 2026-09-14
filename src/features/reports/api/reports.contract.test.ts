@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { createReport } from "./api";
+import { createReport } from "./reports";
 import type { CreateReportRequest } from "@/shared/types";
 
 afterEach(() => {

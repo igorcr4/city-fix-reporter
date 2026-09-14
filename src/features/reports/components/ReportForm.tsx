@@ -15,7 +15,7 @@ import {
 import type { ReportCategory, CreateReportRequest, UpdateReportRequest } from "@/shared/types";
 import type { GeographyCity, GeographyCountry, GeographyState } from "@/shared/types";
 import { CATEGORY_LABELS } from "@/shared/types";
-import { getMyReports } from "@/core/api/api";
+import { getMyReports } from "@/features/reports/api/reports";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";

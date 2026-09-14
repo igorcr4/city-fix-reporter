@@ -6,6 +6,7 @@ import {
 } from "react-map-gl/maplibre";
 import type { ReportMapPointFeatureCollection } from "@/features/reports/helpers/reportMapGeoJson";
 import type { ReportCategory } from "@/shared/types";
+import { REPORT_STATUS } from "@/shared/types";
 
 interface ReportClusterLayerProps {
   data: ReportMapPointFeatureCollection;
@@ -92,7 +93,7 @@ const unclusteredReportLayer: SymbolLayer = {
   layout: {
     "icon-image": [
       "case",
-      ["==", ["get", "status"], "RESOLVED"],
+      ["==", ["get", "status"], REPORT_STATUS.RESOLVED],
       REPORT_RESOLVED_MARKER_ICON_ID,
       [
         "match",

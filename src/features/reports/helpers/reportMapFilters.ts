@@ -1,6 +1,10 @@
 import type { Report, ReportCategory, ReportStatus } from "@/shared/types";
+import { REPORT_STATUS } from "@/shared/types";
 
-export type ReportMapFilter = ReportCategory | "ALL" | "RESOLVED";
+export type ReportMapFilter =
+  | ReportCategory
+  | "ALL"
+  | typeof REPORT_STATUS.RESOLVED;
 
 export const RESOLVED_REPORT_MARKER_COLOR = "#16a34a";
 
@@ -16,11 +20,15 @@ export function filterReportsForMap(
   reports: Report[],
   filter: ReportMapFilter
 ): Report[] {
-  if (filter === "RESOLVED") {
-    return reports.filter((report) => report.status === "RESOLVED");
+  if (filter === REPORT_STATUS.RESOLVED) {
+    return reports.filter(
+      (report) => report.status === REPORT_STATUS.RESOLVED
+    );
   }
 
-  const activeReports = reports.filter((report) => report.status !== "RESOLVED");
+  const activeReports = reports.filter(
+    (report) => report.status !== REPORT_STATUS.RESOLVED
+  );
 
   if (filter === "ALL") {
     return activeReports;
@@ -33,7 +41,7 @@ export function getReportMapMarkerColor(
   category: ReportCategory,
   status: ReportStatus
 ): string {
-  if (status === "RESOLVED") {
+  if (status === REPORT_STATUS.RESOLVED) {
     return RESOLVED_REPORT_MARKER_COLOR;
   }
 

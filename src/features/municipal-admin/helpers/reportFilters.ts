@@ -1,4 +1,5 @@
 import type { Report, ReportCategory, ReportStatus } from "@/shared/types";
+import { REPORT_STATUS } from "@/shared/types";
 import type {
   MunicipalDashboardSummary,
   MunicipalReportCategoryFilter,
@@ -19,9 +20,9 @@ export const MUNICIPAL_REPORT_CATEGORIES: MunicipalReportCategoryFilter[] = [
 export const MUNICIPAL_REPORT_STATUSES: MunicipalReportStatusFilter[] = [
   "ACTIVE",
   "ALL",
-  "NEW",
-  "IN_PROGRESS",
-  "RESOLVED",
+  REPORT_STATUS.NEW,
+  REPORT_STATUS.IN_PROGRESS,
+  REPORT_STATUS.RESOLVED,
 ];
 
 function startOfDayTime(date: Date): number {
@@ -58,7 +59,7 @@ export function filterAndSortMunicipalReports(
       filters.category === "ALL" || report.category === filters.category;
     const matchesStatus =
       filters.status === "ALL" ||
-      (filters.status === "ACTIVE" && report.status !== "RESOLVED") ||
+      (filters.status === "ACTIVE" && report.status !== REPORT_STATUS.RESOLVED) ||
       report.status === filters.status;
 
     if (!matchesCategory || !matchesStatus) return false;
@@ -107,10 +108,10 @@ export function getMunicipalDashboardSummary(
 ): MunicipalDashboardSummary {
   return reports.reduce<MunicipalDashboardSummary>(
     (summary, report) => {
-      if (report.status === "NEW") summary.pending += 1;
-      if (report.status === "IN_PROGRESS") summary.inProgress += 1;
-      if (report.status === "RESOLVED") summary.resolved += 1;
-      if (report.status !== "RESOLVED") summary.total += 1;
+      if (report.status === REPORT_STATUS.NEW) summary.pending += 1;
+      if (report.status === REPORT_STATUS.IN_PROGRESS) summary.inProgress += 1;
+      if (report.status === REPORT_STATUS.RESOLVED) summary.resolved += 1;
+      if (report.status !== REPORT_STATUS.RESOLVED) summary.total += 1;
 
       return summary;
     },

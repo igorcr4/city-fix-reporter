@@ -8,6 +8,7 @@ import {
 import { ro } from "date-fns/locale/ro";
 
 import type { Report, ReportCategory } from "@/shared/types";
+import { REPORT_STATUS } from "@/shared/types";
 
 export interface ResolutionRate {
   total: number;
@@ -26,7 +27,7 @@ export interface CategoryResolutionTime {
 
 export function getResolutionRate(reports: Report[]): ResolutionRate {
   const total = reports.length;
-  const resolved = reports.filter((report) => report.status === "RESOLVED").length;
+  const resolved = reports.filter((report) => report.status === REPORT_STATUS.RESOLVED).length;
   const percentage = total > 0 ? Math.round((resolved / total) * 100) : 0;
 
   return { total, resolved, percentage };

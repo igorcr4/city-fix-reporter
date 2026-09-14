@@ -1,4 +1,5 @@
 import type { Report, ReportCategory } from "@/shared/types";
+import { REPORT_STATUS } from "@/shared/types";
 
 const EARTH_RADIUS_METERS = 6_371_000;
 
@@ -90,7 +91,7 @@ export function getCriticalReportIds(
   // Zonele critice reflectă problemele active; rapoartele rezolvate nu contează.
   const reportsWithCoordinates = reports.filter(
     (report) =>
-      report.status !== "RESOLVED" &&
+      report.status !== REPORT_STATUS.RESOLVED &&
       isValidCoordinate(report.latitude, report.longitude)
   );
 

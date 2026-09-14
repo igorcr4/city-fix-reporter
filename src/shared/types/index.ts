@@ -1,4 +1,15 @@
-export type ReportStatus = "NEW" | "IN_PROGRESS" | "RESOLVED";
+/**
+ * Sursa unică pentru statusurile unui raport. Codul referă valorile prin
+ * REPORT_STATUS.*, nu prin string-uri scrise de mână, iar tipul se derivă de
+ * aici ca să nu poată ieși din sincron.
+ */
+export const REPORT_STATUS = {
+  NEW: "NEW",
+  IN_PROGRESS: "IN_PROGRESS",
+  RESOLVED: "RESOLVED",
+} as const;
+
+export type ReportStatus = (typeof REPORT_STATUS)[keyof typeof REPORT_STATUS];
 
 export type ReportCategory = "ROAD" | "LIGHTING" | "WASTE" | "VANDALISM" | "OTHER";
 export type UserRole = "ROLE_USER" | "ROLE_MUNICIPAL_ADMIN" | "ROLE_ADMIN";
@@ -122,6 +133,17 @@ export const STATUS_LABELS: Record<ReportStatus, string> = {
   NEW: "Nou",
   IN_PROGRESS: "În lucru",
   RESOLVED: "Rezolvat",
+};
+
+/**
+ * Culorile semantice ale statusurilor, folosite în grafice. Sunt date de
+ * domeniu, nu stil de componentă — clasele Tailwind pentru badge rămân în
+ * StatusBadge, fiindcă țin de prezentarea acelei componente.
+ */
+export const STATUS_COLORS: Record<ReportStatus, string> = {
+  NEW: "#f59e0b",
+  IN_PROGRESS: "#0ea5e9",
+  RESOLVED: "#10b981",
 };
 
 export const CATEGORY_COLORS: Record<ReportCategory, string> = {

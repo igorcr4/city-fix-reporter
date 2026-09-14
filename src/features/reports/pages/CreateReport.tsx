@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/core/auth/AuthContext";
-import { createReport } from "@/core/api/api";
+import { createReport } from "@/features/reports/api/reports";
 import { Header } from "@/shared/components/layout/Header";
 import { ReportForm } from "@/features/reports/components/ReportForm";
 import { toast } from "@/shared/hooks/use-toast";

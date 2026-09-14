@@ -1,4 +1,5 @@
 import { apiFetch } from "@/core/api/http";
+import { extractListPayload, parseErrorMessage } from "@/core/api/parsing";
 import { API_BASE_URL as BASE_URL } from "@/core/config/api";
 import { normalizeUserRole } from "@/core/auth/roles";
 import { compactAdministrativeText } from "@/core/location/administrativeLocation";
@@ -6,6 +7,9 @@ import type {
   AdminUser,
   PromoteMunicipalAdminPayload,
 } from "@/features/admin/types";
+
+const ADMIN_FORBIDDEN_MESSAGE =
+  "Nu ai permisiuni de admin pentru această acțiune.";
 
 const ADMIN_USER_BY_USERNAME_ENDPOINT = `${BASE_URL}/admin/users/username`;
 interface RawAdminUser {
@@ -50,46 +54,6 @@ function normalizeAdminUser(raw: RawAdminUser): AdminUser {
   };
 }
 
-function extractListPayload<T>(raw: unknown): T[] {
-  if (Array.isArray(raw)) return raw as T[];
-
-  if (raw && typeof raw === "object") {
-    const listCandidates = ["items", "content", "data", "results"] as const;
-
-    for (const key of listCandidates) {
-      const value = (raw as Record<string, unknown>)[key];
-      if (Array.isArray(value)) return value as T[];
-    }
-  }
-
-  return [];
-}
-
-async function parseErrorMessage(res: Response, fallback: string): Promise<string> {
-  if (res.status === 401) {
-    return "Sesiunea nu mai este validă sau tokenul lipsește. Deloghează-te și autentifică-te din nou.";
-  }
-
-  if (res.status === 403) {
-    return "Nu ai permisiuni de admin pentru această acțiune.";
-  }
-
-  const text = await res.text().catch(() => "");
-  if (!text) return fallback;
-
-  try {
-    const parsed = JSON.parse(text) as {
-      message?: string;
-      error?: string;
-      detail?: string;
-    };
-
-    return parsed.message ?? parsed.detail ?? parsed.error ?? fallback;
-  } catch {
-    return text;
-  }
-}
-
 export async function findAdminUserByUsername(username: string): Promise<AdminUser | null> {
   const normalizedUsername = username.trim();
   if (!normalizedUsername) return null;
@@ -108,10 +72,9 @@ export async function findAdminUserByUsername(username: string): Promise<AdminUs
 
   if (!res.ok) {
     throw new Error(
-      await parseErrorMessage(
-        res,
-        "Nu s-a putut căuta userul după username."
-      )
+      await parseErrorMessage(res, "Nu s-a putut căuta userul după username.", {
+        forbiddenMessage: ADMIN_FORBIDDEN_MESSAGE,
+      })
     );
   }
 
@@ -142,7 +105,9 @@ export async function promoteToMunicipalAdmin(
 
   if (!res.ok) {
     throw new Error(
-      await parseErrorMessage(res, "Nu s-a putut promova userul la municipal admin.")
+      await parseErrorMessage(res, "Nu s-a putut promova userul la municipal admin.", {
+        forbiddenMessage: ADMIN_FORBIDDEN_MESSAGE,
+      })
     );
   }
 }
@@ -154,7 +119,9 @@ export async function demoteToRegularUser(userId: number): Promise<void> {
 
   if (!res.ok) {
     throw new Error(
-      await parseErrorMessage(res, "Nu s-a putut retrograda userul la rolul de user.")
+      await parseErrorMessage(res, "Nu s-a putut retrograda userul la rolul de user.", {
+        forbiddenMessage: ADMIN_FORBIDDEN_MESSAGE,
+      })
     );
   }
 }

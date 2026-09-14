@@ -1,17 +1,11 @@
 import { apiFetch } from "@/core/api/http";
+import { parseErrorMessage, readBoolean } from "@/core/api/parsing";
 import { API_BASE_URL as BASE_URL } from "@/core/config/api";
 import type {
   CommentCreateRequest,
   CommentResponse,
   CommentUpdateRequest,
 } from "@/features/comments/types";
-
-function normalizeBoolean(value: unknown): boolean {
-  if (value === true) return true;
-  if (value === 1) return true;
-  if (typeof value === "string") return value.trim().toLowerCase() === "true";
-  return false;
-}
 
 function normalizeCommentResponse(raw: unknown): CommentResponse {
   const item = raw as Partial<CommentResponse> & {
@@ -42,14 +36,9 @@ function normalizeCommentResponse(raw: unknown): CommentResponse {
     updatedAt: item.updatedAt ? String(item.updatedAt) : null,
     username: String(item.username ?? "Utilizator"),
     userId: Number(item.userId),
-    canEdit: normalizeBoolean(item.canEdit),
-    canDelete: normalizeBoolean(item.canDelete),
+    canEdit: readBoolean(item.canEdit),
+    canDelete: readBoolean(item.canDelete),
   };
-}
-
-async function readErrorMessage(response: Response, fallback: string): Promise<string> {
-  const message = await response.text().catch(() => "");
-  return message.trim() || fallback;
 }
 
 export async function getReportComments(reportId: number): Promise<CommentResponse[]> {
@@ -57,7 +46,7 @@ export async function getReportComments(reportId: number): Promise<CommentRespon
 
   if (!response.ok) {
     throw new Error(
-      await readErrorMessage(response, "Comentariile nu au putut fi încărcate.")
+      await parseErrorMessage(response, "Comentariile nu au putut fi încărcate.")
     );
   }
 
@@ -79,7 +68,7 @@ export async function createReportComment(
 
   if (!response.ok) {
     throw new Error(
-      await readErrorMessage(response, "Comentariul nu a putut fi trimis.")
+      await parseErrorMessage(response, "Comentariul nu a putut fi trimis.")
     );
   }
 
@@ -101,7 +90,7 @@ export async function updateReportComment(
 
   if (!response.ok) {
     throw new Error(
-      await readErrorMessage(response, "Comentariul nu a putut fi actualizat.")
+      await parseErrorMessage(response, "Comentariul nu a putut fi actualizat.")
     );
   }
 
@@ -116,7 +105,7 @@ export async function deleteReportComment(commentId: number): Promise<void> {
 
   if (!response.ok) {
     throw new Error(
-      await readErrorMessage(response, "Comentariul nu a putut fi șters.")
+      await parseErrorMessage(response, "Comentariul nu a putut fi șters.")
     );
   }
 }

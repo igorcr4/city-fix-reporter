@@ -4,7 +4,7 @@ import Map, { Marker } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { Header } from "@/shared/components/layout/Header";
-import { getMyReports } from "@/core/api/api";
+import { getMyReports } from "@/features/reports/api/reports";
 import { ReportCommentsSection } from "@/features/comments/components/ReportCommentsSection";
 import { getReportMapUrl } from "@/features/reports/helpers/reportMapNavigation";
 import {

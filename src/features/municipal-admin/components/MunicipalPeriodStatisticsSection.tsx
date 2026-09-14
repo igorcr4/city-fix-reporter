@@ -17,7 +17,12 @@ import { PieChart as PieChartIcon, TrendingUp } from "lucide-react";
 import { getReportsByMonth } from "@/features/municipal-admin/helpers/periodStatistics";
 import { getStatusCounts } from "@/features/municipal-admin/helpers/reportFilters";
 import { NO_DATA_IN_RANGE_MESSAGE } from "@/features/municipal-admin/helpers/statsInterval";
-import { STATUS_LABELS, type Report, type ReportStatus } from "@/shared/types";
+import {
+  STATUS_COLORS,
+  STATUS_LABELS,
+  type Report,
+  type ReportStatus,
+} from "@/shared/types";
 import {
   Card,
   CardContent,
@@ -31,12 +36,6 @@ interface MunicipalPeriodStatisticsSectionProps {
   /** Un interval concret e activ (nu „Tot") → placeholder specific intervalului. */
   rangeApplied?: boolean;
 }
-
-const STATUS_COLORS: Record<ReportStatus, string> = {
-  NEW: "#f59e0b",
-  IN_PROGRESS: "#0ea5e9",
-  RESOLVED: "#10b981",
-};
 
 export function MunicipalPeriodStatisticsSection({
   reports,

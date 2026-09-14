@@ -1,4 +1,11 @@
 import { apiFetch } from "@/core/api/http";
+import {
+  asRecord,
+  expectArray,
+  parseErrorMessage,
+  readNumber,
+  readString,
+} from "@/core/api/parsing";
 import { API_BASE_URL as BASE_URL } from "@/core/config/api";
 import type {
   GeocodedPlace,
@@ -14,36 +21,6 @@ const GEOGRAPHY_GEOCODING_ENDPOINT = `${BASE_URL}/geography/geocoding`;
 
 /** Backendul semnalează cu 422 că punctul nu poate fi rezolvat la o localitate. */
 const UNPROCESSABLE_ENTITY = 422;
-
-function readString(source: Record<string, unknown>, key: string): string | null {
-  const value = source[key];
-  return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
-function readNumber(source: Record<string, unknown>, key: string): number | null {
-  const value = source[key];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-/**
- * Contractul este fix: lista vine ca array la rădăcină. Orice altă formă e o
- * nepotrivire de contract și trebuie semnalată, nu ascunsă printr-o listă goală.
- */
-function expectArray(raw: unknown, resourceLabel: string): unknown[] {
-  if (!Array.isArray(raw)) {
-    throw new Error(
-      `Răspuns neașteptat de la server pentru ${resourceLabel}: se aștepta o listă.`
-    );
-  }
-
-  return raw;
-}
 
 /** {iso2, name} — folosit identic pentru țări și regiuni. */
 function parseIso2Entries<T extends GeographyCountry | GeographyState>(
@@ -79,31 +56,6 @@ function parseCityEntries(raw: unknown): GeographyCity[] {
 
     return { name };
   });
-}
-
-async function parseErrorMessage(res: Response, fallback: string): Promise<string> {
-  if (res.status === 401) {
-    return "Sesiunea nu mai este validă sau tokenul lipsește. Deloghează-te și autentifică-te din nou.";
-  }
-
-  if (res.status === 403) {
-    return "Nu ai permisiuni pentru această acțiune.";
-  }
-
-  const text = await res.text().catch(() => "");
-  if (!text) return fallback;
-
-  try {
-    const parsed = JSON.parse(text) as {
-      message?: string;
-      error?: string;
-      detail?: string;
-    };
-
-    return parsed.message ?? parsed.detail ?? parsed.error ?? fallback;
-  } catch {
-    return text;
-  }
 }
 
 export async function getCountries(): Promise<GeographyCountry[]> {

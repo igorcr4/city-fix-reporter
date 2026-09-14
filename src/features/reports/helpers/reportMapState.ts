@@ -1,4 +1,5 @@
 import type { ReportMapFilter } from "@/features/reports/helpers/reportMapFilters";
+import { REPORT_STATUS } from "@/shared/types";
 
 export interface StoredReportMapViewState {
   latitude: number;
@@ -17,7 +18,7 @@ const REPORT_MAP_FILTERS: ReportMapFilter[] = [
   "WASTE",
   "VANDALISM",
   "OTHER",
-  "RESOLVED",
+  REPORT_STATUS.RESOLVED,
 ];
 
 function canUseSessionStorage(): boolean {

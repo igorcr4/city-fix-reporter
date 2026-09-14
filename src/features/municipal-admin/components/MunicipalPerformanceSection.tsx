@@ -38,6 +38,7 @@ import { NO_DATA_IN_RANGE_MESSAGE } from "@/features/municipal-admin/helpers/sta
 import {
   CATEGORY_COLORS,
   CATEGORY_LABELS,
+  STATUS_COLORS,
   STATUS_LABELS,
   type Report,
   type ReportStatus,
@@ -57,12 +58,6 @@ interface MunicipalPerformanceSectionProps {
   /** Un interval concret e activ (nu „Tot") → placeholder specific intervalului. */
   rangeApplied?: boolean;
 }
-
-const STATUS_COLORS: Record<ReportStatus, string> = {
-  NEW: "#f59e0b",
-  IN_PROGRESS: "#0ea5e9",
-  RESOLVED: "#10b981",
-};
 
 /**
  * Semnificația direcției pentru un delta:

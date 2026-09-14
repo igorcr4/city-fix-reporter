@@ -1,4 +1,5 @@
 import type { Report, ReportCategory } from "@/shared/types";
+import { REPORT_STATUS } from "@/shared/types";
 
 export type MyReportsTab = "active" | "resolved";
 export type MyReportsSortKey = "newest" | "oldest";
@@ -12,7 +13,7 @@ interface MyReportsFilterOptions {
 export function splitMyReportsByStatus(reports: Report[]): Record<MyReportsTab, Report[]> {
   return reports.reduce<Record<MyReportsTab, Report[]>>(
     (groups, report) => {
-      if (report.status === "RESOLVED") {
+      if (report.status === REPORT_STATUS.RESOLVED) {
         groups.resolved.push(report);
       } else {
         groups.active.push(report);

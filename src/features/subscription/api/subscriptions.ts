@@ -1,4 +1,5 @@
 import { apiFetch } from "@/core/api/http";
+import { parseErrorMessage } from "@/core/api/parsing";
 import { API_BASE_URL as BASE_URL } from "@/core/config/api";
 import type {
   AccessRequestPayload,
@@ -13,31 +14,6 @@ const CHECKOUT_ENDPOINT = `${SUBSCRIPTIONS_ENDPOINT}/checkout`;
 const FEATURES_ENDPOINT = `${SUBSCRIPTIONS_ENDPOINT}/features`;
 const CANCEL_ENDPOINT = `${SUBSCRIPTIONS_ENDPOINT}/cancel`;
 const ACCESS_REQUEST_ENDPOINT = `${BASE_URL}/requests/create`;
-
-async function parseErrorMessage(res: Response, fallback: string): Promise<string> {
-  if (res.status === 401) {
-    return "Sesiunea nu mai este validă sau tokenul lipsește. Deloghează-te și autentifică-te din nou.";
-  }
-
-  if (res.status === 403) {
-    return "Nu ai permisiuni pentru această acțiune.";
-  }
-
-  const text = await res.text().catch(() => "");
-  if (!text) return fallback;
-
-  try {
-    const parsed = JSON.parse(text) as {
-      message?: string;
-      error?: string;
-      detail?: string;
-    };
-
-    return parsed.message ?? parsed.detail ?? parsed.error ?? fallback;
-  } catch {
-    return text;
-  }
-}
 
 /** Abonamentul curent al municipalității. Întoarce `null` dacă nu există încă unul. */
 export async function getCurrentSubscription(): Promise<Subscription | null> {
