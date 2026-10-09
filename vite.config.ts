@@ -18,6 +18,20 @@ function parseDevServerPort(value: string | undefined): number {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
+  if (mode === "production") {
+    const apiBaseUrl = env.VITE_API_BASE_URL?.trim();
+    if (!apiBaseUrl) {
+      throw new Error(
+        "VITE_API_BASE_URL is required for production builds (e.g. https://api.example.com)."
+      );
+    }
+    if (!apiBaseUrl.startsWith("https://")) {
+      throw new Error(
+        `VITE_API_BASE_URL must use HTTPS in production builds (got "${apiBaseUrl}"). Use an https:// origin, e.g. https://api.example.com.`
+      );
+    }
+  }
+
   return {
     server: {
       host: parseDevServerHost(env.VITE_DEV_SERVER_HOST),
