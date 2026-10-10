@@ -5,6 +5,7 @@ import { login, register } from "@/features/auth/api/auth";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
+import { PasswordInput } from "@/shared/components/ui/password-input";
 import { toast } from "@/shared/hooks/use-toast";
 import heroImage from "@/assets/hero-city.jpg";
 import { MapPin } from "lucide-react";
@@ -116,11 +117,11 @@ const handleRegister = async (e: FormEvent) => {
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="login-user">Utilizator</Label>
-              <Input id="login-user" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="email" required />
+              <Input id="login-user" autoComplete="username" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} placeholder="email" required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="login-pass">Parolă</Label>
-              <Input id="login-pass" type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="••••••" required />
+              <PasswordInput id="login-pass" autoComplete="current-password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} placeholder="••••••" required />
             </div>
             <Button type="submit" size="lg" disabled={loading} className="mt-2 text-base">
               {loading ? "Se conectează..." : "Login"}
@@ -130,15 +131,15 @@ const handleRegister = async (e: FormEvent) => {
           <form onSubmit={handleRegister} className="flex flex-col gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="reg-user">Utilizator</Label>
-              <Input id="reg-user" value={regUsername} onChange={(e) => setRegUsername(e.target.value)} placeholder="username" maxLength={50} required />
+              <Input id="reg-user" autoComplete="username" value={regUsername} onChange={(e) => setRegUsername(e.target.value)} placeholder="username" maxLength={50} required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="reg-email">Email</Label>
-              <Input id="reg-email" type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} placeholder="email@exemplu.ro" maxLength={255} required />
+              <Input id="reg-email" type="email" autoComplete="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} placeholder="email@exemplu.ro" maxLength={255} required />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="reg-pass">Parolă</Label>
-              <Input id="reg-pass" type="password" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} placeholder="minim 6 caractere" required />
+              <PasswordInput id="reg-pass" autoComplete="new-password" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} placeholder="minim 6 caractere" required />
             </div>
             <Button type="submit" size="lg" disabled={loading} className="mt-2 text-base">
               {loading ? "Se creează contul..." : "Creează cont"}
